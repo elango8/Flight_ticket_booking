@@ -18,4 +18,4 @@ __pycache__
 .env.test.example           
 .env.prod.example
 .env.dev.example
-.env.test.example           
+.env.test.example               

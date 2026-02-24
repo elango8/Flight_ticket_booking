@@ -7,6 +7,7 @@ from routers.flights import router as flights_router
 from routers.seats import router as seats_router
 from routers.locks import router as locks_router
 from routers.airports import router as airports_router
+from routers.auth import router as auth_router
 
 
 app = FastAPI(title="Flight ticket Booking API")
@@ -19,12 +20,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(flights_router)
-
 app.include_router(seats_router)
-
 app.include_router(locks_router)
-
 app.include_router(airports_router)
 
 @app.get("/")
@@ -35,4 +34,3 @@ def root():
 async def health_db(db: AsyncSession = Depends(get_db)):
     result = await db.execute(text("SELECT 1 AS ok"))
     return {"db": result.mappings().first()["ok"]}
-

@@ -1,11 +1,38 @@
 services:
+  postgres:
+    image: postgres:16
+    container_name: flight_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: elango08
+      POSTGRES_PASSWORD: elango08
+      POSTGRES_DB: flight_booking_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flight_user -d flight_booking_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   redis:
-    image: redis:7-alpine
-    container_name: flight_booking_redis
+    image: redis:7
+    container_name: flight_redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 5s
-      retries: 5
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  redisdata:

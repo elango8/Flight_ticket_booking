@@ -26,7 +26,7 @@ def serialize_flight(row):
 async def search_flights(
     from_code: str = Query(..., alias="from", min_length=3, max_length=10),
     to_code: str = Query(..., alias="to", min_length=3, max_length=10),
-    date: str = Query(..., min_length=10, max_length=10),  # YYYY-MM-DD
+    date: str = Query(..., min_length=10, max_length=10), 
     db: AsyncSession = Depends(get_db),
 ):
     sql = text("""

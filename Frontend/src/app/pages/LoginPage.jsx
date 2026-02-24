@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Mail, Lock, Chrome, Facebook } from 'lucide-react';
+import { Mail, Lock, User as UserIcon, Chrome, Facebook, AlertCircle } from 'lucide-react';
+import { signup, login, setToken } from '../utils/api.js';
 
 export function LoginPage() {
     const navigate = useNavigate();
@@ -10,10 +11,32 @@ export function LoginPage() {
         password: '',
         name: '',
     });
+    const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        navigate('/my-trips');
+        setError(null);
+        setLoading(true);
+
+        try {
+            let result;
+            if (isLogin) {
+                result = await login(formData.email, formData.password);
+            } else {
+                result = await signup(formData.name, formData.email, formData.password);
+            }
+
+            // Store the token
+            setToken(result.access_token);
+
+            // Navigate to home
+            navigate('/');
+        } catch (err) {
+            setError(err.message || 'Something went wrong. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -29,25 +52,56 @@ export function LoginPage() {
                         </p>
                     </div>
 
+                    {error && (
+                        <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+                            <p className="text-sm text-red-700">{error}</p>
+                        </div>
+                    )}
+
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {!isLogin && (
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                                <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] focus:border-transparent" placeholder="John Doe" required={!isLogin} />
+                                <div className="relative">
+                                    <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        value={formData.name}
+                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] focus:border-transparent"
+                                        placeholder="John Doe"
+                                        required={!isLogin}
+                                    />
+                                </div>
                             </div>
                         )}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
                             <div className="relative">
                                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] focus:border-transparent" placeholder="john@example.com" required />
+                                <input
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] focus:border-transparent"
+                                    placeholder="john@example.com"
+                                    required
+                                />
                             </div>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
                             <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                                <input type="password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] focus:border-transparent" placeholder="••••••••" required />
+                                <input
+                                    type="password"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0033A0] focus:border-transparent"
+                                    placeholder="••••••••"
+                                    required
+                                />
                             </div>
                         </div>
                         {isLogin && (
@@ -59,8 +113,19 @@ export function LoginPage() {
                                 <button type="button" className="text-[#0033A0] hover:underline">Forgot password?</button>
                             </div>
                         )}
-                        <button type="submit" className="w-full bg-[#0033A0] text-white py-3 rounded-lg hover:bg-[#002d8f] transition-colors">
-                            {isLogin ? 'Login' : 'Sign Up'}
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-[#0033A0] text-white py-3 rounded-lg hover:bg-[#002d8f] transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            {loading ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    <span>{isLogin ? 'Logging in...' : 'Creating account...'}</span>
+                                </>
+                            ) : (
+                                isLogin ? 'Login' : 'Sign Up'
+                            )}
                         </button>
                     </form>
 
@@ -83,7 +148,11 @@ export function LoginPage() {
 
                     <div className="mt-8 text-center text-sm">
                         <span className="text-gray-600">{isLogin ? "Don't have an account?" : 'Already have an account?'}</span>{' '}
-                        <button type="button" onClick={() => setIsLogin(!isLogin)} className="text-[#0033A0] font-medium hover:underline">
+                        <button
+                            type="button"
+                            onClick={() => { setIsLogin(!isLogin); setError(null); }}
+                            className="text-[#0033A0] font-medium hover:underline"
+                        >
                             {isLogin ? 'Sign up' : 'Login'}
                         </button>
                     </div>

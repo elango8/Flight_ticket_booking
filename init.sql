@@ -54,6 +54,38 @@ CREATE TABLE IF NOT EXISTS booking_seats (
 );
 
 -- ============================================
+-- Users & Authentication
+-- ============================================
+
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================
+-- Seat Holds (temporary locks before payment)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS seat_holds (
+    id SERIAL PRIMARY KEY,
+    flight_instance_id INTEGER REFERENCES flight_instances(id),
+    seat_no VARCHAR(10) NOT NULL,
+    user_id UUID REFERENCES users(id),
+    held_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    UNIQUE (flight_instance_id, seat_no)
+);
+
+-- Index for fast expiration cleanup
+CREATE INDEX IF NOT EXISTS idx_seat_holds_expires ON seat_holds (expires_at);
+
+-- ============================================
 -- Seed Data
 -- ============================================
 

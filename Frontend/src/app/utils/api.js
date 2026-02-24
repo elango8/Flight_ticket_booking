@@ -3,6 +3,26 @@
 
 const API_BASE = '/api';
 
+// ─── Token Helpers ───────────────────────────────────────────────────
+
+export function getToken() {
+    return localStorage.getItem('access_token');
+}
+
+export function setToken(token) {
+    localStorage.setItem('access_token', token);
+}
+
+export function removeToken() {
+    localStorage.removeItem('access_token');
+}
+
+function authHeaders() {
+    const token = getToken();
+    if (!token) return {};
+    return { Authorization: `Bearer ${token}` };
+}
+
 // ─── City ↔ Airport Code Mapping ────────────────────────────────────
 
 const CITY_TO_CODE = {
@@ -14,6 +34,10 @@ const CITY_TO_CODE = {
     'Kolkata': 'CCU',
     'Goa': 'GOI',
     'Kochi': 'COK',
+    'Pune': 'PNQ',
+    'Ahmedabad': 'AMD',
+    'Jaipur': 'JAI',
+    'Guwahati': 'GAU',
 };
 
 const CODE_TO_CITY = Object.fromEntries(
@@ -28,7 +52,7 @@ export function codeToCity(code) {
     return CODE_TO_CITY[code] || code;
 }
 
-// ─── API Functions ──────────────────────────────────────────────────
+// ─── Response Handler ────────────────────────────────────────────────
 
 async function handleResponse(response) {
     if (!response.ok) {
@@ -38,10 +62,35 @@ async function handleResponse(response) {
     return response.json();
 }
 
-/**
- * Search flights by origin, destination, and date.
- * Accepts city names (e.g. "Chennai") — they are auto-converted to airport codes.
- */
+// ─── Auth API Functions ──────────────────────────────────────────────
+
+export async function signup(name, email, password) {
+    const response = await fetch(`${API_BASE}/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+    });
+    return handleResponse(response);
+}
+
+export async function login(email, password) {
+    const response = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+    });
+    return handleResponse(response);
+}
+
+export async function getMe() {
+    const response = await fetch(`${API_BASE}/auth/me`, {
+        headers: { ...authHeaders() },
+    });
+    return handleResponse(response);
+}
+
+// ─── Flight API Functions ────────────────────────────────────────────
+
 export async function searchFlights(from, to, date) {
     const fromCode = cityToCode(from);
     const toCode = cityToCode(to);
@@ -50,41 +99,37 @@ export async function searchFlights(from, to, date) {
     return handleResponse(response);
 }
 
-/**
- * Get a single flight by its ID.
- */
 export async function getFlightById(id) {
     const response = await fetch(`${API_BASE}/flights/${id}`);
     return handleResponse(response);
 }
 
-/**
- * Get the seat map for a flight, including booked/available status.
- */
+// ─── Seat API Functions ──────────────────────────────────────────────
+
 export async function getSeats(flightId) {
     const response = await fetch(`${API_BASE}/flights/${flightId}/seats`);
     return handleResponse(response);
 }
 
-/**
- * Lock a seat for 5 minutes via Redis.
- */
-export async function lockSeat(flightId, seatNo, userId = 1) {
-    const response = await fetch(`${API_BASE}/locks`, {
+export async function holdSeat(flightId, seatNo) {
+    const response = await fetch(`${API_BASE}/flights/${flightId}/hold`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            flight_id: flightId,
-            seat_no: seatNo,
-            user_id: userId,
-        }),
+        headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders(),
+        },
+        body: JSON.stringify({ seat_no: seatNo }),
     });
     return handleResponse(response);
 }
 
-/**
- * Get list of airports from backend.
- */
+// Legacy lock function — kept for backwards compatibility
+export async function lockSeat(flightId, seatNo, userId = 1) {
+    return holdSeat(flightId, seatNo);
+}
+
+// ─── Airport API ─────────────────────────────────────────────────────
+
 export async function getAirports() {
     const response = await fetch(`${API_BASE}/airports`);
     return handleResponse(response);
@@ -92,20 +137,17 @@ export async function getAirports() {
 
 // ─── Helpers: Convert API response to frontend Flight shape ─────────
 
-/** Extract airline code from flight number (e.g. "6E-2043" → "6E") */
 function extractAirlineCode(flightNumber) {
     const parts = flightNumber.split('-');
     return parts[0] || flightNumber.substring(0, 2);
 }
 
-/** Format a time string (HH:MM:SS → HH:MM) */
 function formatTime(time) {
     if (!time) return '';
     const parts = time.split(':');
     return `${parts[0]}:${parts[1]}`;
 }
 
-/** Calculate duration between two time strings */
 function calculateDuration(dep, arr) {
     const [depH, depM] = dep.split(':').map(Number);
     const [arrH, arrM] = arr.split(':').map(Number);
@@ -116,9 +158,6 @@ function calculateDuration(dep, arr) {
     return `${hours}h ${minutes}m`;
 }
 
-/**
- * Convert an API flight response to the shape used by frontend components.
- */
 export function apiFlightToFrontend(apiFlight) {
     const depTime = formatTime(apiFlight.departure_time);
     const arrTime = formatTime(apiFlight.arrival_time);

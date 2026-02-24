@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { Timer, CheckCircle2 } from 'lucide-react';
-import { getSeats, lockSeat } from '../utils/api.js';
+import { Timer, CheckCircle2, AlertCircle } from 'lucide-react';
+import { getSeats, holdSeat, getToken } from '../utils/api.js';
 
 export function SeatSelectionPage() {
     const navigate = useNavigate();
@@ -18,38 +18,71 @@ export function SeatSelectionPage() {
 
     const [seats, setSeats] = useState([]);
     const [selectedSeats, setSelectedSeats] = useState([]);
+    const [lockedSeats, setLockedSeats] = useState(new Set());
+    const [bookedSeats, setBookedSeats] = useState(new Set());
     const [timeLeft, setTimeLeft] = useState(null);
     const [timerStarted, setTimerStarted] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [lockError, setLockError] = useState(null);
     const timerRef = useRef(null);
+    const pollRef = useRef(null);
 
-    useEffect(() => {
-        async function fetchSeats() {
-            setLoading(true);
-            setError(null);
-            try {
-                const flightId = flight.id;
-                const result = await getSeats(flightId);
-                const seatList = result.seats.map((apiSeat) => {
-                    const seatNo = apiSeat.seat_no;
-                    const match = seatNo.match(/^(\d+)([A-Z])$/);
-                    if (!match) {
-                        return { id: seatNo, row: 0, column: seatNo, status: apiSeat.status === 'BOOKED' ? 'booked' : 'available' };
-                    }
-                    return { id: seatNo, row: parseInt(match[1]), column: match[2], status: apiSeat.status === 'BOOKED' ? 'booked' : 'available' };
-                });
-                setSeats(seatList);
-            } catch (err) {
+    // ── Fetch seats from API ─────────────────────────────────────────
+    const fetchSeats = useCallback(async () => {
+        try {
+            const flightId = flight.id;
+            const result = await getSeats(flightId);
+            const booked = new Set();
+            const locked = new Set();
+            const seatList = result.seats.map((apiSeat) => {
+                const seatNo = apiSeat.seat_no;
+                const match = seatNo.match(/^(\d+)([A-Z])$/);
+                let status = 'available';
+
+                if (apiSeat.status === 'BOOKED') {
+                    status = 'booked';
+                    booked.add(seatNo);
+                } else if (apiSeat.status === 'LOCKED') {
+                    status = 'locked';
+                    locked.add(seatNo);
+                }
+
+                if (!match) {
+                    return { id: seatNo, row: 0, column: seatNo, status };
+                }
+                return { id: seatNo, row: parseInt(match[1]), column: match[2], status };
+            });
+
+            setSeats(seatList);
+            setBookedSeats(booked);
+            setLockedSeats(locked);
+        } catch (err) {
+            if (seats.length === 0) {
                 setError(err.message || 'Failed to load seats');
                 generateLocalSeats();
-            } finally {
-                setLoading(false);
             }
         }
-        fetchSeats();
     }, [flight.id]);
+
+    // ── Initial fetch ─────────────────────────────────────────────────
+    useEffect(() => {
+        async function initialFetch() {
+            setLoading(true);
+            setError(null);
+            await fetchSeats();
+            setLoading(false);
+        }
+        initialFetch();
+    }, [fetchSeats]);
+
+    // ── Auto-refresh seats every 10 seconds ──────────────────────────
+    useEffect(() => {
+        pollRef.current = setInterval(() => {
+            fetchSeats();
+        }, 10000);
+        return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    }, [fetchSeats]);
 
     function generateLocalSeats() {
         const rows = 30;
@@ -63,6 +96,7 @@ export function SeatSelectionPage() {
         setSeats(localSeats);
     }
 
+    // ── Countdown timer ──────────────────────────────────────────────
     useEffect(() => {
         if (timerStarted && timeLeft !== null && timeLeft > 0) {
             timerRef.current = setInterval(() => {
@@ -92,29 +126,58 @@ export function SeatSelectionPage() {
 
     const allRows = [...new Set(seats.map(s => s.row))].sort((a, b) => a - b);
 
+    // ── Handle seat click ────────────────────────────────────────────
     const handleSeatClick = async (seat) => {
-        if (seat.status === 'booked') return;
+        if (seat.status === 'booked' || seat.status === 'locked') return;
         setLockError(null);
+
+        // Start timer on first selection
         if (!timerStarted && selectedSeats.length === 0) {
             setTimerStarted(true);
             setTimeLeft(600);
         }
+
+        // Deselect if already selected
         if (selectedSeats.includes(seat.id)) {
             setSelectedSeats(selectedSeats.filter(s => s !== seat.id));
-        } else {
-            try {
-                await lockSeat(Number(flight.id), seat.id, 1);
-                setSelectedSeats([...selectedSeats, seat.id]);
-            } catch (err) {
-                setLockError(`Seat ${seat.id} is already locked by another user`);
-            }
+            return;
+        }
+
+        // Check if user is logged in
+        const token = getToken();
+        if (!token) {
+            setLockError('Please login first to select seats');
+            return;
+        }
+
+        // Try to hold the seat
+        try {
+            await holdSeat(Number(flight.id), seat.id);
+            setSelectedSeats([...selectedSeats, seat.id]);
+            // Re-fetch seats to get latest state
+            await fetchSeats();
+        } catch (err) {
+            setLockError(err.message || `Seat ${seat.id} is already locked by another user`);
         }
     };
 
+    // ── Seat color logic ─────────────────────────────────────────────
+    // RED = booked, ORANGE = locked/selected, GREEN = available
     const getSeatColor = (seat) => {
-        if (selectedSeats.includes(seat.id)) return 'bg-[#0033A0] text-white border-[#0033A0] shadow-lg';
-        if (seat.status === 'available') return 'bg-green-500 hover:bg-green-600 text-white cursor-pointer border-green-600';
-        return 'bg-gray-400 text-white cursor-not-allowed border-gray-500';
+        if (seat.status === 'booked' || bookedSeats.has(seat.id)) {
+            return 'bg-red-500 text-white cursor-not-allowed border-red-600';
+        }
+        if (selectedSeats.includes(seat.id)) {
+            return 'bg-orange-500 text-white border-orange-600 shadow-lg ring-2 ring-orange-300';
+        }
+        if (seat.status === 'locked' || lockedSeats.has(seat.id)) {
+            return 'bg-orange-400 text-white cursor-not-allowed border-orange-500';
+        }
+        return 'bg-green-500 hover:bg-green-600 text-white cursor-pointer border-green-600';
+    };
+
+    const isSeatDisabled = (seat) => {
+        return seat.status === 'booked' || (seat.status === 'locked' && !selectedSeats.includes(seat.id));
     };
 
     const formatTime = (seconds) => {
@@ -147,7 +210,13 @@ export function SeatSelectionPage() {
                     </div>
                 )}
 
-                {lockError && (<div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-red-700 text-sm">{lockError}</div>)}
+                {lockError && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-center gap-3">
+                        <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+                        <span className="text-red-700 text-sm">{lockError}</span>
+                        <button onClick={() => setLockError(null)} className="ml-auto text-red-400 hover:text-red-600 text-lg font-bold">×</button>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     <div className="lg:col-span-3">
@@ -170,11 +239,12 @@ export function SeatSelectionPage() {
 
                             {!loading && (
                                 <>
+                                    {/* Legend — GREEN / ORANGE / RED */}
                                     <div className="flex items-center gap-6 mb-8 pb-6 border-b border-gray-200 flex-wrap">
                                         {[
                                             { color: 'bg-green-500', label: 'Available', border: 'border-green-600' },
-                                            { color: 'bg-[#0033A0]', label: 'Your Selection', border: 'border-[#0033A0]' },
-                                            { color: 'bg-gray-400', label: 'Booked', border: 'border-gray-500' },
+                                            { color: 'bg-orange-500', label: 'Selected / Locked', border: 'border-orange-600' },
+                                            { color: 'bg-red-500', label: 'Booked', border: 'border-red-600' },
                                         ].map((item) => (
                                             <div key={item.label} className="flex items-center gap-2">
                                                 <div className={`w-8 h-8 rounded border-2 ${item.color} ${item.border} shadow-sm`}></div>
@@ -205,7 +275,12 @@ export function SeatSelectionPage() {
                                                             {['A', 'B', 'C'].map(col => {
                                                                 const seat = seats.find(s => s.row === row && s.column === col);
                                                                 return seat ? (
-                                                                    <button key={seat.id} onClick={() => handleSeatClick(seat)} className={`w-12 h-12 rounded-lg text-xs font-bold transition-all border-2 ${getSeatColor(seat)}`} disabled={seat.status === 'booked'}>
+                                                                    <button
+                                                                        key={seat.id}
+                                                                        onClick={() => handleSeatClick(seat)}
+                                                                        className={`w-12 h-12 rounded-lg text-xs font-bold transition-all border-2 ${getSeatColor(seat)}`}
+                                                                        disabled={isSeatDisabled(seat)}
+                                                                    >
                                                                         {selectedSeats.includes(seat.id) ? <CheckCircle2 className="w-6 h-6 mx-auto" /> : col}
                                                                     </button>
                                                                 ) : (<div key={`${row}${col}`} className="w-12 h-12"></div>);
@@ -216,7 +291,12 @@ export function SeatSelectionPage() {
                                                             {['D', 'E', 'F'].map(col => {
                                                                 const seat = seats.find(s => s.row === row && s.column === col);
                                                                 return seat ? (
-                                                                    <button key={seat.id} onClick={() => handleSeatClick(seat)} className={`w-12 h-12 rounded-lg text-xs font-bold transition-all border-2 ${getSeatColor(seat)}`} disabled={seat.status === 'booked'}>
+                                                                    <button
+                                                                        key={seat.id}
+                                                                        onClick={() => handleSeatClick(seat)}
+                                                                        className={`w-12 h-12 rounded-lg text-xs font-bold transition-all border-2 ${getSeatColor(seat)}`}
+                                                                        disabled={isSeatDisabled(seat)}
+                                                                    >
                                                                         {selectedSeats.includes(seat.id) ? <CheckCircle2 className="w-6 h-6 mx-auto" /> : col}
                                                                     </button>
                                                                 ) : (<div key={`${row}${col}`} className="w-12 h-12"></div>);
@@ -241,7 +321,7 @@ export function SeatSelectionPage() {
                             ) : (
                                 <div className="mb-6">
                                     <div className="flex flex-wrap gap-2 mb-4">
-                                        {selectedSeats.map((seatId) => (<div key={seatId} className="bg-gradient-to-br from-[#0033A0] to-[#0052CC] text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg">{seatId}</div>))}
+                                        {selectedSeats.map((seatId) => (<div key={seatId} className="bg-gradient-to-br from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg">{seatId}</div>))}
                                     </div>
                                     <div className="text-sm text-gray-600">{selectedSeats.length} seat{selectedSeats.length > 1 ? 's' : ''} selected</div>
                                 </div>
