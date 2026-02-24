@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { CreditCard, Smartphone, Building2, Lock, CheckCircle } from 'lucide-react';
 import { createBooking } from '../utils/api.js';
@@ -9,6 +9,9 @@ export function PaymentPage() {
     const { flight, searchData, passengerData: statePassengerData, selectedSeats } = location.state || {};
     const [paymentMethod, setPaymentMethod] = useState('card');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [bookingConfirmed, setBookingConfirmed] = useState(false);
+    const [bookingPnr, setBookingPnr] = useState('');
+    const [paymentError, setPaymentError] = useState(null);
 
     const [cardData, setCardData] = useState({ cardNumber: '', cardName: '', expiryDate: '', cvv: '' });
     const [upiId, setUpiId] = useState('');
@@ -16,6 +19,14 @@ export function PaymentPage() {
 
     const mockPassengerData = { firstName: 'John', lastName: 'Doe', gender: 'Male', age: 30, email: 'john.doe@example.com', phone: '+91 9876543210' };
     const passengerData = statePassengerData || mockPassengerData;
+
+    // Auto-redirect after animation
+    useEffect(() => {
+        if (bookingConfirmed) {
+            const timer = setTimeout(() => navigate('/my-trips'), 3500);
+            return () => clearTimeout(timer);
+        }
+    }, [bookingConfirmed, navigate]);
 
     if (!flight || !selectedSeats || !flight.price) {
         return (
@@ -33,12 +44,11 @@ export function PaymentPage() {
     const handlePayment = async (e) => {
         e.preventDefault();
         setIsProcessing(true);
+        setPaymentError(null);
 
         try {
-            // Simulate payment processing delay
             await new Promise(resolve => setTimeout(resolve, 2000));
 
-            // Create real booking in backend
             const result = await createBooking(
                 Number(flight.id),
                 selectedSeats,
@@ -46,21 +56,119 @@ export function PaymentPage() {
                 passengerData,
             );
 
-            navigate('/confirmation', {
-                state: {
-                    bookingId: result.pnr,
-                    flight,
-                    searchData,
-                    passengerData,
-                    selectedSeats,
-                    totalAmount,
-                },
-            });
+            setBookingPnr(result.pnr);
+            setBookingConfirmed(true);
         } catch (err) {
-            alert(err.message || 'Booking failed. Please try again.');
+            setPaymentError(err.message || 'Booking failed. Please try again.');
             setIsProcessing(false);
         }
     };
+
+    // ── Booking Confirmed Overlay ───────────────────────────────────
+    if (bookingConfirmed) {
+        return (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gradient-to-br from-[#0033A0] to-[#0052CC]">
+                {/* Confetti particles */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    {Array.from({ length: 30 }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="confetti-particle"
+                            style={{
+                                left: `${Math.random() * 100}%`,
+                                animationDelay: `${Math.random() * 1}s`,
+                                backgroundColor: ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7', '#DDA0DD', '#98D8C8'][i % 8],
+                            }}
+                        />
+                    ))}
+                </div>
+
+                <div className="text-center relative z-10" style={{ animation: 'scaleIn 0.5s ease-out' }}>
+                    {/* Animated checkmark */}
+                    <div className="mx-auto mb-8" style={{ width: 120, height: 120 }}>
+                        <svg viewBox="0 0 120 120" className="checkmark-svg">
+                            <circle
+                                cx="60" cy="60" r="54"
+                                fill="none"
+                                stroke="rgba(255,255,255,0.3)"
+                                strokeWidth="4"
+                            />
+                            <circle
+                                cx="60" cy="60" r="54"
+                                fill="none"
+                                stroke="white"
+                                strokeWidth="4"
+                                strokeLinecap="round"
+                                className="checkmark-circle"
+                            />
+                            <polyline
+                                points="38,62 52,76 82,46"
+                                fill="none"
+                                stroke="white"
+                                strokeWidth="5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="checkmark-check"
+                            />
+                        </svg>
+                    </div>
+
+                    <h1 className="text-4xl font-bold text-white mb-3" style={{ animation: 'fadeInUp 0.6s ease-out 0.4s both' }}>
+                        Booking Confirmed!
+                    </h1>
+                    <p className="text-xl text-white/90 mb-2" style={{ animation: 'fadeInUp 0.6s ease-out 0.6s both' }}>
+                        Your PNR: <span className="font-bold text-[#FFD700]">{bookingPnr}</span>
+                    </p>
+                    <p className="text-white/70 mb-6" style={{ animation: 'fadeInUp 0.6s ease-out 0.8s both' }}>
+                        {flight.departure} → {flight.arrival} • {selectedSeats.join(', ')}
+                    </p>
+                    <div className="text-white/60 text-sm" style={{ animation: 'fadeInUp 0.6s ease-out 1s both' }}>
+                        <div className="w-6 h-6 border-2 border-white/40 border-t-white rounded-full animate-spin mx-auto mb-2"></div>
+                        Redirecting to My Trips...
+                    </div>
+                </div>
+
+                <style>{`
+                    @keyframes scaleIn {
+                        from { opacity: 0; transform: scale(0.8); }
+                        to { opacity: 1; transform: scale(1); }
+                    }
+                    @keyframes fadeInUp {
+                        from { opacity: 0; transform: translateY(20px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                    .checkmark-circle {
+                        stroke-dasharray: 340;
+                        stroke-dashoffset: 340;
+                        animation: drawCircle 0.8s ease-out 0.2s forwards;
+                    }
+                    @keyframes drawCircle {
+                        to { stroke-dashoffset: 0; }
+                    }
+                    .checkmark-check {
+                        stroke-dasharray: 80;
+                        stroke-dashoffset: 80;
+                        animation: drawCheck 0.5s ease-out 0.8s forwards;
+                    }
+                    @keyframes drawCheck {
+                        to { stroke-dashoffset: 0; }
+                    }
+                    .confetti-particle {
+                        position: absolute;
+                        width: 10px;
+                        height: 10px;
+                        border-radius: 2px;
+                        top: -10px;
+                        animation: confettiFall 3s ease-in-out infinite;
+                    }
+                    @keyframes confettiFall {
+                        0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+                        100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+                    }
+                `}</style>
+            </div>
+        );
+    }
 
     return (
         <div className="bg-gray-50 min-h-screen py-8">
@@ -131,6 +239,12 @@ export function PaymentPage() {
                                     </div>
                                 )}
 
+                                {paymentError && (
+                                    <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                                        <p className="text-sm text-red-700 font-medium">{paymentError}</p>
+                                    </div>
+                                )}
+
                                 <div className="mt-6 p-4 bg-green-50 rounded-lg flex items-start gap-3">
                                     <Lock className="w-5 h-5 text-green-600 mt-0.5" />
                                     <div className="text-sm">
@@ -139,7 +253,7 @@ export function PaymentPage() {
                                     </div>
                                 </div>
 
-                                <button type="submit" disabled={isProcessing} className="w-full mt-6 bg-[#0033A0] text-white py-4 rounded-lg hover:bg-[#002d8f] transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2">
+                                <button type="submit" disabled={isProcessing} className="w-full mt-6 bg-gradient-to-r from-[#0033A0] to-[#0052CC] text-white py-4 rounded-lg hover:shadow-lg transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium">
                                     {isProcessing ? (
                                         <>
                                             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

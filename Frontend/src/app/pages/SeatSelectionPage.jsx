@@ -3,6 +3,28 @@ import { useLocation, useNavigate } from 'react-router';
 import { Timer, CheckCircle2, AlertCircle } from 'lucide-react';
 import { getSeats, holdSeat, getToken } from '../utils/api.js';
 
+// ── SVG Seat Component ──────────────────────────────────────────────
+function SeatIcon({ fill, stroke, label, isSelected }) {
+    return (
+        <svg viewBox="0 0 40 48" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+            {/* Backrest */}
+            <rect x="6" y="2" width="28" height="24" rx="6" ry="6" fill={fill} stroke={stroke} strokeWidth="1.5" />
+            {/* Seat cushion */}
+            <rect x="6" y="24" width="28" height="14" rx="4" ry="4" fill={fill} stroke={stroke} strokeWidth="1.5" />
+            {/* Left armrest */}
+            <rect x="1" y="18" width="5" height="20" rx="2.5" fill={fill} stroke={stroke} strokeWidth="1.2" opacity="0.8" />
+            {/* Right armrest */}
+            <rect x="34" y="18" width="5" height="20" rx="2.5" fill={fill} stroke={stroke} strokeWidth="1.2" opacity="0.8" />
+            {/* Label text */}
+            {isSelected ? (
+                <text x="20" y="22" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold">✓</text>
+            ) : (
+                <text x="20" y="22" textAnchor="middle" fill="white" fontSize="10" fontWeight="600">{label}</text>
+            )}
+        </svg>
+    );
+}
+
 export function SeatSelectionPage() {
     const navigate = useNavigate();
     const location = useLocation();
@@ -131,19 +153,16 @@ export function SeatSelectionPage() {
         if (seat.status === 'booked' || seat.status === 'locked') return;
         setLockError(null);
 
-        // Start timer on first selection
         if (!timerStarted && selectedSeats.length === 0) {
             setTimerStarted(true);
             setTimeLeft(600);
         }
 
-        // Deselect if already selected
         if (selectedSeats.includes(seat.id)) {
             setSelectedSeats(selectedSeats.filter(s => s !== seat.id));
             return;
         }
 
-        // Check if user is logged in
         const token = getToken();
         if (!token) {
             setLockError('Please login first to select seats');
@@ -153,31 +172,27 @@ export function SeatSelectionPage() {
         // Optimistic update — show orange immediately
         setSelectedSeats(prev => [...prev, seat.id]);
 
-        // Try to hold the seat on backend
         try {
             await holdSeat(Number(flight.id), seat.id);
-            // Background refresh to sync with server (non-blocking)
             fetchSeats();
         } catch (err) {
-            // Revert optimistic update on failure
             setSelectedSeats(prev => prev.filter(s => s !== seat.id));
             setLockError(err.message || `Seat ${seat.id} is already locked by another user`);
         }
     };
 
-    // ── Seat color logic ─────────────────────────────────────────────
-    // RED = booked, ORANGE = locked/selected, GREEN = available
-    const getSeatColor = (seat) => {
+    // ── Seat colors: GREEN / ORANGE / RED ────────────────────────────
+    const getSeatColors = (seat) => {
         if (seat.status === 'booked' || bookedSeats.has(seat.id)) {
-            return 'bg-red-500 text-white cursor-not-allowed border-red-600';
+            return { fill: '#ef4444', stroke: '#dc2626' }; // Red
         }
         if (selectedSeats.includes(seat.id)) {
-            return 'bg-orange-500 text-white border-orange-600 shadow-lg ring-2 ring-orange-300';
+            return { fill: '#f97316', stroke: '#ea580c' }; // Orange (selected)
         }
         if (seat.status === 'locked' || lockedSeats.has(seat.id)) {
-            return 'bg-orange-400 text-white cursor-not-allowed border-orange-500';
+            return { fill: '#fb923c', stroke: '#f97316' }; // Orange (held by others)
         }
-        return 'bg-green-500 hover:bg-green-600 text-white cursor-pointer border-green-600';
+        return { fill: '#22c55e', stroke: '#16a34a' }; // Green
     };
 
     const isSeatDisabled = (seat) => {
@@ -197,6 +212,30 @@ export function SeatSelectionPage() {
     };
 
     const isTimeRunningOut = timeLeft !== null && timeLeft <= 120;
+
+    // ── Render seat button ───────────────────────────────────────────
+    const renderSeat = (seat) => {
+        const { fill, stroke } = getSeatColors(seat);
+        const disabled = isSeatDisabled(seat);
+        const isSelected = selectedSeats.includes(seat.id);
+        const isAvailable = seat.status !== 'booked' && seat.status !== 'locked';
+
+        return (
+            <button
+                key={seat.id}
+                onClick={() => handleSeatClick(seat)}
+                disabled={disabled}
+                className={`w-11 h-14 relative transition-all duration-200 ${disabled ? 'cursor-not-allowed opacity-80' :
+                        isSelected ? 'scale-105 drop-shadow-lg' :
+                            isAvailable ? 'cursor-pointer hover:scale-110 hover:drop-shadow-md' : ''
+                    }`}
+                title={`Seat ${seat.id} — ${seat.status === 'booked' ? 'Booked' : seat.status === 'locked' ? 'Held' : isSelected ? 'Selected' : 'Available'}`}
+                style={isSelected ? { animation: 'seatPulse 1.5s ease-in-out infinite' } : {}}
+            >
+                <SeatIcon fill={fill} stroke={stroke} label={seat.column} isSelected={isSelected} />
+            </button>
+        );
+    };
 
     return (
         <div className="bg-gray-50 min-h-screen py-8">
@@ -243,15 +282,17 @@ export function SeatSelectionPage() {
 
                             {!loading && (
                                 <>
-                                    {/* Legend — GREEN / ORANGE / RED */}
-                                    <div className="flex items-center gap-6 mb-8 pb-6 border-b border-gray-200 flex-wrap">
+                                    {/* Legend */}
+                                    <div className="flex items-center gap-8 mb-8 pb-6 border-b border-gray-200 flex-wrap">
                                         {[
-                                            { color: 'bg-green-500', label: 'Available', border: 'border-green-600' },
-                                            { color: 'bg-orange-500', label: 'Selected / Locked', border: 'border-orange-600' },
-                                            { color: 'bg-red-500', label: 'Booked', border: 'border-red-600' },
+                                            { fill: '#22c55e', stroke: '#16a34a', label: 'Available' },
+                                            { fill: '#f97316', stroke: '#ea580c', label: 'Selected / Held' },
+                                            { fill: '#ef4444', stroke: '#dc2626', label: 'Booked' },
                                         ].map((item) => (
                                             <div key={item.label} className="flex items-center gap-2">
-                                                <div className={`w-8 h-8 rounded border-2 ${item.color} ${item.border} shadow-sm`}></div>
+                                                <div className="w-8 h-10">
+                                                    <SeatIcon fill={item.fill} stroke={item.stroke} label="" isSelected={false} />
+                                                </div>
                                                 <span className="text-sm text-gray-700 font-medium">{item.label}</span>
                                             </div>
                                         ))}
@@ -263,50 +304,38 @@ export function SeatSelectionPage() {
 
                                     <div className="overflow-x-auto">
                                         <div className="inline-block min-w-full">
-                                            <div className="flex justify-center mb-4">
-                                                <div className="flex gap-2">
-                                                    {['A', 'B', 'C'].map((col) => (<div key={col} className="w-12 text-center text-sm font-bold text-[#0033A0]">{col}</div>))}
-                                                    <div className="w-12"></div>
-                                                    {['D', 'E', 'F'].map((col) => (<div key={col} className="w-12 text-center text-sm font-bold text-[#0033A0]">{col}</div>))}
+                                            {/* Column headers */}
+                                            <div className="flex justify-center mb-3">
+                                                <div className="flex gap-1.5 items-center">
+                                                    <div className="w-10"></div>
+                                                    {['A', 'B', 'C'].map((col) => (<div key={col} className="w-11 text-center text-sm font-bold text-[#0033A0]">{col}</div>))}
+                                                    <div className="w-10"></div>
+                                                    {['D', 'E', 'F'].map((col) => (<div key={col} className="w-11 text-center text-sm font-bold text-[#0033A0]">{col}</div>))}
+                                                    <div className="w-10"></div>
                                                 </div>
                                             </div>
 
-                                            <div className="space-y-2">
+                                            {/* Seat rows */}
+                                            <div className="space-y-1">
                                                 {allRows.map((row) => (
-                                                    <div key={row} className="flex justify-center items-center gap-2">
-                                                        <div className="w-10 text-sm font-bold text-gray-600 text-right">{row}</div>
-                                                        <div className="flex gap-2">
+                                                    <div key={row} className="flex justify-center items-center gap-1.5">
+                                                        <div className="w-10 text-sm font-bold text-gray-500 text-right pr-1">{row}</div>
+                                                        <div className="flex gap-1.5">
                                                             {['A', 'B', 'C'].map(col => {
                                                                 const seat = seats.find(s => s.row === row && s.column === col);
-                                                                return seat ? (
-                                                                    <button
-                                                                        key={seat.id}
-                                                                        onClick={() => handleSeatClick(seat)}
-                                                                        className={`w-12 h-12 rounded-lg text-xs font-bold transition-all border-2 ${getSeatColor(seat)}`}
-                                                                        disabled={isSeatDisabled(seat)}
-                                                                    >
-                                                                        {selectedSeats.includes(seat.id) ? <CheckCircle2 className="w-6 h-6 mx-auto" /> : col}
-                                                                    </button>
-                                                                ) : (<div key={`${row}${col}`} className="w-12 h-12"></div>);
+                                                                return seat ? renderSeat(seat) : (<div key={`${row}${col}`} className="w-11 h-14"></div>);
                                                             })}
                                                         </div>
-                                                        <div className="w-12 flex items-center justify-center"><div className="h-px w-8 bg-gray-300"></div></div>
-                                                        <div className="flex gap-2">
+                                                        <div className="w-10 flex items-center justify-center">
+                                                            <div className="h-px w-6 bg-gray-300"></div>
+                                                        </div>
+                                                        <div className="flex gap-1.5">
                                                             {['D', 'E', 'F'].map(col => {
                                                                 const seat = seats.find(s => s.row === row && s.column === col);
-                                                                return seat ? (
-                                                                    <button
-                                                                        key={seat.id}
-                                                                        onClick={() => handleSeatClick(seat)}
-                                                                        className={`w-12 h-12 rounded-lg text-xs font-bold transition-all border-2 ${getSeatColor(seat)}`}
-                                                                        disabled={isSeatDisabled(seat)}
-                                                                    >
-                                                                        {selectedSeats.includes(seat.id) ? <CheckCircle2 className="w-6 h-6 mx-auto" /> : col}
-                                                                    </button>
-                                                                ) : (<div key={`${row}${col}`} className="w-12 h-12"></div>);
+                                                                return seat ? renderSeat(seat) : (<div key={`${row}${col}`} className="w-11 h-14"></div>);
                                                             })}
                                                         </div>
-                                                        <div className="w-10 text-sm font-bold text-gray-600">{row}</div>
+                                                        <div className="w-10 text-sm font-bold text-gray-500 pl-1">{row}</div>
                                                     </div>
                                                 ))}
                                             </div>
@@ -347,6 +376,13 @@ export function SeatSelectionPage() {
                     </div>
                 </div>
             </div>
+
+            <style>{`
+                @keyframes seatPulse {
+                    0%, 100% { transform: scale(1.05); }
+                    50% { transform: scale(1.1); }
+                }
+            `}</style>
         </div>
     );
 }
