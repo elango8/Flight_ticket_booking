@@ -1,36 +1,13 @@
-import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Plane, User, LogOut } from 'lucide-react';
-import { getToken, removeToken, getMe } from '../utils/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export function Header() {
     const navigate = useNavigate();
-    const [user, setUser] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        async function fetchUser() {
-            const token = getToken();
-            if (!token) {
-                setLoading(false);
-                return;
-            }
-            try {
-                const userData = await getMe();
-                setUser(userData);
-            } catch {
-                // Token invalid/expired — clear it
-                removeToken();
-            } finally {
-                setLoading(false);
-            }
-        }
-        fetchUser();
-    }, []);
+    const { user, loading, logout } = useAuth();
 
     const handleLogout = () => {
-        removeToken();
-        setUser(null);
+        logout();
         navigate('/');
     };
 

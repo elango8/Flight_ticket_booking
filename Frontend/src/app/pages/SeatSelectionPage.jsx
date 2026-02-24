@@ -150,13 +150,17 @@ export function SeatSelectionPage() {
             return;
         }
 
-        // Try to hold the seat
+        // Optimistic update — show orange immediately
+        setSelectedSeats(prev => [...prev, seat.id]);
+
+        // Try to hold the seat on backend
         try {
             await holdSeat(Number(flight.id), seat.id);
-            setSelectedSeats([...selectedSeats, seat.id]);
-            // Re-fetch seats to get latest state
-            await fetchSeats();
+            // Background refresh to sync with server (non-blocking)
+            fetchSeats();
         } catch (err) {
+            // Revert optimistic update on failure
+            setSelectedSeats(prev => prev.filter(s => s !== seat.id));
             setLockError(err.message || `Seat ${seat.id} is already locked by another user`);
         }
     };

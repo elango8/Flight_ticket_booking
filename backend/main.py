@@ -8,6 +8,7 @@ from routers.seats import router as seats_router
 from routers.locks import router as locks_router
 from routers.airports import router as airports_router
 from routers.auth import router as auth_router
+from routers.bookings import router as bookings_router
 
 
 app = FastAPI(title="Flight ticket Booking API")
@@ -25,6 +26,7 @@ app.include_router(flights_router)
 app.include_router(seats_router)
 app.include_router(locks_router)
 app.include_router(airports_router)
+app.include_router(bookings_router)
 
 @app.get("/")
 def root():

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { CreditCard, Smartphone, Building2, Lock, CheckCircle } from 'lucide-react';
+import { createBooking } from '../utils/api.js';
 
 export function PaymentPage() {
     const navigate = useNavigate();
@@ -32,9 +33,33 @@ export function PaymentPage() {
     const handlePayment = async (e) => {
         e.preventDefault();
         setIsProcessing(true);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        const bookingId = 'PNR' + Math.random().toString(36).substr(2, 9).toUpperCase();
-        navigate('/confirmation', { state: { bookingId, flight, searchData, passengerData, selectedSeats, totalAmount } });
+
+        try {
+            // Simulate payment processing delay
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            // Create real booking in backend
+            const result = await createBooking(
+                Number(flight.id),
+                selectedSeats,
+                totalAmount,
+                passengerData,
+            );
+
+            navigate('/confirmation', {
+                state: {
+                    bookingId: result.pnr,
+                    flight,
+                    searchData,
+                    passengerData,
+                    selectedSeats,
+                    totalAmount,
+                },
+            });
+        } catch (err) {
+            alert(err.message || 'Booking failed. Please try again.');
+            setIsProcessing(false);
+        }
     };
 
     return (

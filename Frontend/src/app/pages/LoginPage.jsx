@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Mail, Lock, User as UserIcon, Chrome, Facebook, AlertCircle } from 'lucide-react';
-import { signup, login, setToken } from '../utils/api.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 export function LoginPage() {
     const navigate = useNavigate();
+    const auth = useAuth();
     const [isLogin, setIsLogin] = useState(true);
     const [formData, setFormData] = useState({
         email: '',
@@ -20,17 +21,13 @@ export function LoginPage() {
         setLoading(true);
 
         try {
-            let result;
             if (isLogin) {
-                result = await login(formData.email, formData.password);
+                await auth.login(formData.email, formData.password);
             } else {
-                result = await signup(formData.name, formData.email, formData.password);
+                await auth.signupUser(formData.name, formData.email, formData.password);
             }
 
-            // Store the token
-            setToken(result.access_token);
-
-            // Navigate to home
+            // Navigate to home — Header will already show user name via context
             navigate('/');
         } catch (err) {
             setError(err.message || 'Something went wrong. Please try again.');

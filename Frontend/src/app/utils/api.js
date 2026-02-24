@@ -128,6 +128,36 @@ export async function lockSeat(flightId, seatNo, userId = 1) {
     return holdSeat(flightId, seatNo);
 }
 
+// ─── Booking API Functions ───────────────────────────────────────────
+
+export async function createBooking(flightId, seatNos, totalAmount, passengerData = {}) {
+    const response = await fetch(`${API_BASE}/bookings`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders(),
+        },
+        body: JSON.stringify({
+            flight_id: flightId,
+            seat_nos: seatNos,
+            total_amount: totalAmount,
+            passenger_name: passengerData.firstName
+                ? `${passengerData.firstName} ${passengerData.lastName || ''}`
+                : undefined,
+            passenger_email: passengerData.email || undefined,
+            passenger_phone: passengerData.phone || undefined,
+        }),
+    });
+    return handleResponse(response);
+}
+
+export async function getMyTrips() {
+    const response = await fetch(`${API_BASE}/my-trips`, {
+        headers: { ...authHeaders() },
+    });
+    return handleResponse(response);
+}
+
 // ─── Airport API ─────────────────────────────────────────────────────
 
 export async function getAirports() {

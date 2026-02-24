@@ -33,7 +33,7 @@ export function LandingPage() {
                 {/* Background with Overlay */}
                 <div className="absolute inset-0">
                     <ImageWithFallback
-                        src="https://images.unsplash.com/photo-1627663412345-aad473f2ba39?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhaXJwbGFuZSUyMGZseWluZyUyMHNreSUyMGNsb3Vkc3xlbnwxfHx8fDE3NzE4NTI5ODl8MA&ixlib=rb-4.1.0&q=80&w=1080"
+                        src="https://in.pinterest.com/pin/979110775248243893/"
                         alt="Aircraft in flight"
                         className="w-full h-full object-cover"
                     />
