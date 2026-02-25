@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import {
     Search,
@@ -9,16 +9,38 @@ import {
     Clock,
     Headphones,
     Star,
-    MapPin,
-    TrendingUp,
     CreditCard,
     Globe,
+    ChevronLeft,
     ChevronRight,
-    Sparkles,
 } from "lucide-react";
 import { AirportCombobox } from "../components/AirportCombobox.jsx";
 import { DatePickerPopover } from "../components/DatePickerPopover.jsx";
 import { PassengerSelector } from "../components/PassengerSelector.jsx";
+
+// ── Hero carousel images (Unsplash – royalty-free) ──
+const HERO_IMAGES = [
+    {
+        url: "https://images.unsplash.com/photo-1436491865332-7a61a109db05?auto=format&fit=crop&w=1920&q=80",
+        alt: "Airplane wing above clouds at sunset",
+    },
+    {
+        url: "https://images.unsplash.com/photo-1464037866556-6812c9d1c72e?auto=format&fit=crop&w=1920&q=80",
+        alt: "Commercial airplane flying through golden clouds",
+    },
+    {
+        url: "https://images.unsplash.com/photo-1529074963764-98f45c47344b?auto=format&fit=crop&w=1920&q=80",
+        alt: "Aerial view from airplane window showing landscape",
+    },
+    {
+        url: "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=1920&q=80",
+        alt: "Airplane on runway during blue hour twilight",
+    },
+    {
+        url: "https://images.unsplash.com/photo-1542296332-2e4473faf563?auto=format&fit=crop&w=1920&q=80",
+        alt: "Airplane silhouette against vibrant sunset sky",
+    },
+];
 
 export function LandingPage() {
     const navigate = useNavigate();
@@ -29,7 +51,8 @@ export function LandingPage() {
         returnDate: "",
         passengers: 1,
     });
-    const [activeStatIndex, setActiveStatIndex] = useState(0);
+    const [currentSlide, setCurrentSlide] = useState(0);
+    const [imagesLoaded, setImagesLoaded] = useState([]);
 
     const handleSearch = (e) => {
         e.preventDefault();
@@ -37,19 +60,28 @@ export function LandingPage() {
         navigate("/search", { state: searchData });
     };
 
+    // ── Preload images ──
     useEffect(() => {
-        const interval = setInterval(() => {
-            setActiveStatIndex((prev) => (prev + 1) % 4);
-        }, 3000);
-        return () => clearInterval(interval);
+        HERO_IMAGES.forEach((img, i) => {
+            const image = new Image();
+            image.src = img.url;
+            image.onload = () => setImagesLoaded((prev) => [...prev, i]);
+        });
     }, []);
 
-    const popularRoutes = [
-        { from: "Delhi", to: "Mumbai", price: "₹3,499", image: "🏙️", tag: "Most Popular" },
-        { from: "Bangalore", to: "Goa", price: "₹2,899", image: "🏖️", tag: "Trending" },
-        { from: "Chennai", to: "Kolkata", price: "₹4,199", image: "🌆", tag: "Best Value" },
-        { from: "Hyderabad", to: "Delhi", price: "₹3,799", image: "🕌", tag: "Hot Deal" },
-    ];
+    // ── Auto-advance carousel every 5s ──
+    const nextSlide = useCallback(() => {
+        setCurrentSlide((prev) => (prev + 1) % HERO_IMAGES.length);
+    }, []);
+
+    const prevSlide = useCallback(() => {
+        setCurrentSlide((prev) => (prev - 1 + HERO_IMAGES.length) % HERO_IMAGES.length);
+    }, []);
+
+    useEffect(() => {
+        const timer = setInterval(nextSlide, 5000);
+        return () => clearInterval(timer);
+    }, [nextSlide]);
 
     const features = [
         { icon: Shield, title: "Secure Booking", description: "Bank-grade encryption protects your payments and data", color: "from-emerald-500 to-teal-600" },
@@ -58,55 +90,64 @@ export function LandingPage() {
         { icon: Clock, title: "Instant Confirmation", description: "Get your e-ticket and boarding pass instantly", color: "from-sky-500 to-blue-600" },
     ];
 
-    const stats = [
-        { value: "10M+", label: "Happy Travelers", icon: Users },
-        { value: "500+", label: "Routes Covered", icon: Globe },
-        { value: "50+", label: "Partner Airlines", icon: Plane },
-        { value: "4.8★", label: "Customer Rating", icon: Star },
-    ];
-
     return (
         <div className="bg-white overflow-hidden">
             {/* ═══════════════ HERO SECTION ═══════════════ */}
             <div className="relative min-h-screen overflow-hidden">
-                {/* Layered animated background */}
+                {/* ── Image Carousel Background ── */}
                 <div className="absolute inset-0">
-                    {/* Base gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-[#000d2b] via-[#001f6d] to-[#003db8]" />
-
-                    {/* Animated mesh overlay */}
-                    <div className="absolute inset-0 opacity-[0.04]"
-                        style={{
-                            backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.5) 1px, transparent 0)",
-                            backgroundSize: "40px 40px",
-                        }}
-                    />
-
-                    {/* Large animated gradient blobs */}
-                    <div className="absolute -top-20 -left-20 w-[500px] h-[500px] bg-gradient-to-br from-blue-500/25 to-cyan-400/15 rounded-full blur-3xl" style={{ animation: "heroFloat 8s ease-in-out infinite" }} />
-                    <div className="absolute top-1/3 -right-32 w-[600px] h-[600px] bg-gradient-to-bl from-purple-600/20 to-indigo-500/15 rounded-full blur-3xl" style={{ animation: "heroFloat 10s ease-in-out infinite reverse" }} />
-                    <div className="absolute -bottom-40 left-1/4 w-[400px] h-[400px] bg-gradient-to-tr from-cyan-500/15 to-blue-400/10 rounded-full blur-3xl" style={{ animation: "heroFloat 12s ease-in-out infinite", animationDelay: "2s" }} />
-
-                    {/* Animated plane trajectory SVG */}
-                    <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.06 }}>
-                        <path d="M-50,300 Q200,100 500,250 T1000,150 T1500,300" fill="none" stroke="white" strokeWidth="2" strokeDasharray="12 8" className="hero-path-1" />
-                        <path d="M-100,500 Q300,300 600,450 T1200,350 T1800,500" fill="none" stroke="white" strokeWidth="1.5" strokeDasharray="8 6" className="hero-path-2" />
-                    </svg>
-
-                    {/* Floating cloud/particle elements */}
-                    <div className="absolute top-[15%] left-[10%] w-32 h-8 bg-white/[0.03] rounded-full blur-sm" style={{ animation: "cloudDrift 20s linear infinite" }} />
-                    <div className="absolute top-[35%] left-[60%] w-48 h-10 bg-white/[0.02] rounded-full blur-md" style={{ animation: "cloudDrift 25s linear infinite", animationDelay: "5s" }} />
-                    <div className="absolute top-[65%] left-[30%] w-40 h-8 bg-white/[0.03] rounded-full blur-sm" style={{ animation: "cloudDrift 22s linear infinite", animationDelay: "10s" }} />
+                    {HERO_IMAGES.map((img, i) => (
+                        <div
+                            key={i}
+                            className="absolute inset-0 transition-opacity duration-[1500ms] ease-in-out"
+                            style={{ opacity: currentSlide === i ? 1 : 0 }}
+                        >
+                            <img
+                                src={img.url}
+                                alt={img.alt}
+                                className="w-full h-full object-cover"
+                                loading={i === 0 ? "eager" : "lazy"}
+                            />
+                        </div>
+                    ))}
+                    {/* Dark gradient overlay for text readability */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#000d2b]/80 via-[#001f6d]/65 to-[#003db8]/60" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/30" />
                 </div>
 
-                {/* Animated plane icon flying across */}
-                <div className="absolute hero-flying-plane" style={{ animation: "planeFly 15s linear infinite" }}>
-                    <Plane className="w-6 h-6 text-white/20 rotate-45" />
+                {/* ── Carousel navigation arrows ── */}
+                <button
+                    onClick={prevSlide}
+                    className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/70 hover:bg-white/20 hover:text-white transition-all"
+                    aria-label="Previous image"
+                >
+                    <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                    onClick={nextSlide}
+                    className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white/70 hover:bg-white/20 hover:text-white transition-all"
+                    aria-label="Next image"
+                >
+                    <ChevronRight className="w-5 h-5" />
+                </button>
+
+                {/* ── Carousel dots indicator ── */}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+                    {HERO_IMAGES.map((_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setCurrentSlide(i)}
+                            className={`h-2 rounded-full transition-all duration-500 ${currentSlide === i
+                                ? "w-8 bg-white"
+                                : "w-2 bg-white/40 hover:bg-white/60"
+                                }`}
+                            aria-label={`Go to slide ${i + 1}`}
+                        />
+                    ))}
                 </div>
 
-                {/* Content */}
-                <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20">
-                    {/* Two-column hero layout */}
+                {/* ── Content ── */}
+                <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 pb-20">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16">
                         {/* Left — Text */}
                         <div className="text-center lg:text-left">
@@ -117,28 +158,27 @@ export function LandingPage() {
                                 </span>
                             </div>
 
-                            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight">
+                            <h1 className="text-5xl md:text-6xl lg:text-7xl font-extrabold text-white mb-6 leading-[1.1] tracking-tight drop-shadow-lg">
                                 Your Journey
                                 <br />
                                 <span className="hero-gradient-text">Starts Here</span>
                             </h1>
 
-                            <p className="text-lg md:text-xl text-white/60 max-w-lg leading-relaxed mb-10">
-                                Compare <span className="text-white/90 font-semibold">50+ airlines</span>, find the best deals, and book your perfect flight — all in seconds.
+                            <p className="text-lg md:text-xl text-white/70 max-w-lg leading-relaxed mb-10 drop-shadow-md">
+                                Compare <span className="text-white font-semibold">50+ airlines</span>, find the best deals, and book your perfect flight — all in seconds.
                             </p>
 
-                            {/* Mini stats row */}
+                            {/* Stats row */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                {stats.map((stat, i) => {
+                                {[
+                                    { value: "10M+", label: "Travelers", icon: Users },
+                                    { value: "500+", label: "Routes", icon: Globe },
+                                    { value: "50+", label: "Airlines", icon: Plane },
+                                    { value: "4.8★", label: "Rating", icon: Star },
+                                ].map((stat, i) => {
                                     const Icon = stat.icon;
                                     return (
-                                        <div
-                                            key={i}
-                                            className={`flex items-center gap-2.5 bg-white/[0.06] backdrop-blur-md rounded-xl px-4 py-3 border transition-all duration-500 ${activeStatIndex === i
-                                                ? "border-white/20 bg-white/[0.1] scale-[1.03]"
-                                                : "border-white/[0.06]"
-                                                }`}
-                                        >
+                                        <div key={i} className="flex items-center gap-2.5 bg-white/[0.08] backdrop-blur-md rounded-xl px-4 py-3 border border-white/[0.1]">
                                             <Icon className="w-4 h-4 text-cyan-300/80 flex-shrink-0" />
                                             <div>
                                                 <div className="text-white font-bold text-sm leading-none">{stat.value}</div>
@@ -152,7 +192,6 @@ export function LandingPage() {
 
                         {/* Right — Search Card (Glassmorphism) */}
                         <div className="relative">
-                            {/* Glow behind the card */}
                             <div className="absolute -inset-4 bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-purple-500/20 rounded-[2rem] blur-2xl" />
 
                             <div className="relative bg-white/[0.07] backdrop-blur-2xl rounded-2xl border border-white/[0.12] p-7 md:p-8 shadow-2xl shadow-black/20">
@@ -247,7 +286,6 @@ export function LandingPage() {
                 </div>
             </section>
 
-
             {/* Hero Animations */}
             <style>{`
                 .hero-gradient-text {
@@ -261,34 +299,6 @@ export function LandingPage() {
                 @keyframes gradientShift {
                     0%, 100% { background-position: 0% 50%; }
                     50% { background-position: 100% 50%; }
-                }
-                @keyframes heroFloat {
-                    0%, 100% { transform: translate(0, 0) scale(1); }
-                    33% { transform: translate(30px, -20px) scale(1.05); }
-                    66% { transform: translate(-20px, 15px) scale(0.95); }
-                }
-                @keyframes cloudDrift {
-                    0% { transform: translateX(-100px); opacity: 0; }
-                    10% { opacity: 1; }
-                    90% { opacity: 1; }
-                    100% { transform: translateX(calc(100vw + 100px)); opacity: 0; }
-                }
-                @keyframes planeFly {
-                    0% { left: -50px; top: 30%; transform: rotate(-5deg); opacity: 0; }
-                    5% { opacity: 1; }
-                    50% { top: 20%; }
-                    95% { opacity: 1; }
-                    100% { left: calc(100% + 50px); top: 35%; transform: rotate(5deg); opacity: 0; }
-                }
-                .hero-path-1 {
-                    animation: dashMove 30s linear infinite;
-                }
-                .hero-path-2 {
-                    animation: dashMove 25s linear infinite reverse;
-                }
-                @keyframes dashMove {
-                    0% { stroke-dashoffset: 0; }
-                    100% { stroke-dashoffset: -200; }
                 }
             `}</style>
         </div>

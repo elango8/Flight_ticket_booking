@@ -10,6 +10,7 @@ from typing import List, Optional
 from core.security import get_current_user
 from core.redis_client import redis_client
 from db.session import get_db
+from tasks import send_ticket_confirmation_email
 
 router = APIRouter(tags=["Bookings"])
 
@@ -37,6 +38,10 @@ async def create_booking(
 ):
     user_id = str(current_user["id"])
     pnr = generate_pnr()
+    seat_nos = data.seat_nos
+
+    if not seat_nos:
+        raise HTTPException(status_code=400, detail="No seats provided for booking")
 
     # 1. Validate — ensure none of the requested seats are already booked
     already_booked = await db.execute(
@@ -44,7 +49,7 @@ async def create_booking(
             SELECT seat_no FROM booking_seats
             WHERE flight_instance_id = :fid AND seat_no = ANY(:seats)
         """),
-        {"fid": data.flight_id, "seats": data.seat_nos},
+        {"fid": data.flight_id, "seats": seat_nos},
     )
     taken = [row["seat_no"] for row in already_booked.mappings().all()]
     if taken:
@@ -75,7 +80,7 @@ async def create_booking(
     booking_id = booking_row["id"]
 
     # 3. Insert booking_seats rows — permanently marks seats as booked in DB
-    for seat_no in data.seat_nos:
+    for seat_no in seat_nos:
         await db.execute(
             text("""
                 INSERT INTO booking_seats (flight_instance_id, seat_no, user_id, booking_id)
@@ -97,10 +102,18 @@ async def create_booking(
 
     await db.commit()
 
+    # ── Dispatch confirmation email via Celery (non-blocking) ──
+    try:
+        send_ticket_confirmation_email.delay(booking_id)
+    except Exception as e:
+        # Don't fail the booking if Celery/Redis is down
+        print(f"[WARN] Could not dispatch email task: {e}")
+
     return {
         "booking_id": booking_id,
         "pnr": pnr,
         "status": "confirmed",
+        "seats": seat_nos,
         "message": "Booking created successfully",
     }
 

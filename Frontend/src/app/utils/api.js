@@ -111,14 +111,34 @@ export async function getSeats(flightId) {
     return handleResponse(response);
 }
 
-export async function holdSeat(flightId, seatNo) {
-    const response = await fetch(`${API_BASE}/flights/${flightId}/hold`, {
+export async function holdSeat(flightId, seatNo, passengerCount = null) {
+    const params = passengerCount ? `?passenger_count=${passengerCount}` : '';
+    const response = await fetch(`${API_BASE}/flights/${flightId}/hold-seat${params}`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             ...authHeaders(),
         },
         body: JSON.stringify({ seat_no: seatNo }),
+    });
+    return handleResponse(response);
+}
+
+export async function releaseSeat(flightId, seatNo) {
+    const response = await fetch(`${API_BASE}/flights/${flightId}/release-seat`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            ...authHeaders(),
+        },
+        body: JSON.stringify({ seat_no: seatNo }),
+    });
+    return handleResponse(response);
+}
+
+export async function getHoldStatus(flightId) {
+    const response = await fetch(`${API_BASE}/flights/${flightId}/hold-status`, {
+        headers: { ...authHeaders() },
     });
     return handleResponse(response);
 }

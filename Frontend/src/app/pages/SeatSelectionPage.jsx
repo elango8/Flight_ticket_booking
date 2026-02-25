@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
-import { Timer, CheckCircle2, AlertCircle } from 'lucide-react';
-import { getSeats, holdSeat, getToken } from '../utils/api.js';
+import { Timer, CheckCircle2, AlertCircle, X, ArrowRight } from 'lucide-react';
+import { getSeats, holdSeat, releaseSeat, getHoldStatus, getToken } from '../utils/api.js';
 
 // ── SVG Seat Component ──────────────────────────────────────────────
 function SeatIcon({ fill, stroke, label, isSelected }) {
@@ -38,6 +38,9 @@ export function SeatSelectionPage() {
 
     const flight = stateFlight || mockFlight;
 
+    // ── Feature B: Max seats = number of passengers ──
+    const maxSeats = searchData?.passengers || parseInt(localStorage.getItem('passengerCount')) || 1;
+
     const [seats, setSeats] = useState([]);
     const [selectedSeats, setSelectedSeats] = useState([]);
     const [lockedSeats, setLockedSeats] = useState(new Set());
@@ -47,6 +50,7 @@ export function SeatSelectionPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [lockError, setLockError] = useState(null);
+    const [releasing, setReleasing] = useState(null);  // seat being released
     const timerRef = useRef(null);
     const pollRef = useRef(null);
 
@@ -86,6 +90,23 @@ export function SeatSelectionPage() {
             }
         }
     }, [flight.id]);
+
+    // ── Feature C: Sync timer from server hold-status ────────────────
+    const syncHoldStatus = useCallback(async () => {
+        try {
+            const status = await getHoldStatus(Number(flight.id));
+            if (status.remaining_seconds > 0 && status.held_seats.length > 0) {
+                setTimeLeft(status.remaining_seconds);
+                if (!timerStarted) setTimerStarted(true);
+            } else if (status.held_seats.length === 0 && selectedSeats.length === 0) {
+                // No holds left -> stop timer
+                setTimerStarted(false);
+                setTimeLeft(null);
+            }
+        } catch {
+            // Silently fail — server timer sync is best-effort
+        }
+    }, [flight.id, timerStarted, selectedSeats.length]);
 
     // ── Initial fetch ─────────────────────────────────────────────────
     useEffect(() => {
@@ -148,18 +169,20 @@ export function SeatSelectionPage() {
 
     const allRows = [...new Set(seats.map(s => s.row))].sort((a, b) => a - b);
 
-    // ── Handle seat click ────────────────────────────────────────────
+    // ── Handle seat click (Feature B: enforce max N) ─────────────────
     const handleSeatClick = async (seat) => {
         if (seat.status === 'booked' || seat.status === 'locked') return;
         setLockError(null);
 
-        if (!timerStarted && selectedSeats.length === 0) {
-            setTimerStarted(true);
-            setTimeLeft(600);
+        // ── Deselect (clicking already-selected seat) → release hold ──
+        if (selectedSeats.includes(seat.id)) {
+            await handleReleaseSeat(seat.id);
+            return;
         }
 
-        if (selectedSeats.includes(seat.id)) {
-            setSelectedSeats(selectedSeats.filter(s => s !== seat.id));
+        // ── Feature B: check max seat limit ──
+        if (selectedSeats.length >= maxSeats) {
+            setLockError(`You can select only ${maxSeats} seat${maxSeats > 1 ? 's' : ''} (${maxSeats} passenger${maxSeats > 1 ? 's' : ''}).`);
             return;
         }
 
@@ -169,17 +192,50 @@ export function SeatSelectionPage() {
             return;
         }
 
+        if (!timerStarted && selectedSeats.length === 0) {
+            setTimerStarted(true);
+            setTimeLeft(600);
+        }
+
         // Optimistic update — show orange immediately
         setSelectedSeats(prev => [...prev, seat.id]);
 
         try {
-            await holdSeat(Number(flight.id), seat.id);
+            await holdSeat(Number(flight.id), seat.id, maxSeats);
             fetchSeats();
+            syncHoldStatus(); // sync server timer
         } catch (err) {
             setSelectedSeats(prev => prev.filter(s => s !== seat.id));
-            setLockError(err.message || `Seat ${seat.id} is already locked by another user`);
+            const detail = err?.detail || err?.message || `Seat ${seat.id} is already locked by another user`;
+            setLockError(detail);
         }
     };
+
+    // ── Feature C: Release a seat (❌ button) ─────────────────────────
+    const handleReleaseSeat = async (seatId) => {
+        setReleasing(seatId);
+        setLockError(null);
+        try {
+            await releaseSeat(Number(flight.id), seatId);
+            setSelectedSeats(prev => prev.filter(s => s !== seatId));
+            await fetchSeats();
+            await syncHoldStatus();
+
+            // If no seats left, reset timer
+            if (selectedSeats.length <= 1) {
+                setTimerStarted(false);
+                setTimeLeft(null);
+                if (timerRef.current) clearInterval(timerRef.current);
+            }
+        } catch (err) {
+            // Even if release API fails, remove from local state
+            setSelectedSeats(prev => prev.filter(s => s !== seatId));
+        } finally {
+            setReleasing(null);
+        }
+    };
+
+
 
     // ── Seat colors: GREEN / ORANGE / RED ────────────────────────────
     const getSeatColors = (seat) => {
@@ -208,7 +264,14 @@ export function SeatSelectionPage() {
     const handleConfirm = () => {
         if (selectedSeats.length === 0) { alert('Please select at least one seat'); return; }
         if (timerRef.current) clearInterval(timerRef.current);
-        navigate('/payment', { state: { flight, searchData, passengerData, selectedSeats } });
+        navigate('/payment', {
+            state: {
+                flight,
+                searchData,
+                passengerData,
+                selectedSeats,
+            },
+        });
     };
 
     const isTimeRunningOut = timeLeft !== null && timeLeft <= 120;
@@ -226,8 +289,8 @@ export function SeatSelectionPage() {
                 onClick={() => handleSeatClick(seat)}
                 disabled={disabled}
                 className={`w-11 h-14 relative transition-all duration-200 ${disabled ? 'cursor-not-allowed opacity-80' :
-                        isSelected ? 'scale-105 drop-shadow-lg' :
-                            isAvailable ? 'cursor-pointer hover:scale-110 hover:drop-shadow-md' : ''
+                    isSelected ? 'scale-105 drop-shadow-lg' :
+                        isAvailable ? 'cursor-pointer hover:scale-110 hover:drop-shadow-md' : ''
                     }`}
                 title={`Seat ${seat.id} — ${seat.status === 'booked' ? 'Booked' : seat.status === 'locked' ? 'Held' : isSelected ? 'Selected' : 'Available'}`}
                 style={isSelected ? { animation: 'seatPulse 1.5s ease-in-out infinite' } : {}}
@@ -264,7 +327,14 @@ export function SeatSelectionPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                     <div className="lg:col-span-3">
                         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-8">
-                            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Select Your Seat</h2>
+                            {/* ── Feature B: Passenger count badge ── */}
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-2xl font-semibold text-gray-900">Select Your Seat</h2>
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 text-sm">
+                                    <span className="text-blue-700 font-medium">👤 {maxSeats} Passenger{maxSeats > 1 ? 's' : ''}</span>
+                                    <span className="text-blue-500 ml-2">• {selectedSeats.length}/{maxSeats} selected</span>
+                                </div>
+                            </div>
 
                             {loading && (
                                 <div className="text-center py-12">
@@ -346,32 +416,63 @@ export function SeatSelectionPage() {
                         </div>
                     </div>
 
+                    {/* ── Right sidebar: Selected seats + Skip button ── */}
                     <div className="lg:col-span-1">
                         <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 sticky top-20">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Selected Seats</h3>
+
                             {selectedSeats.length === 0 ? (
                                 <p className="text-sm text-gray-600 mb-6">No seats selected</p>
                             ) : (
                                 <div className="mb-6">
+                                    {/* ── Feature C: Seat chips with ❌ close button ── */}
                                     <div className="flex flex-wrap gap-2 mb-4">
-                                        {selectedSeats.map((seatId) => (<div key={seatId} className="bg-gradient-to-br from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-lg">{seatId}</div>))}
+                                        {selectedSeats.map((seatId) => (
+                                            <div key={seatId} className="bg-gradient-to-br from-orange-500 to-orange-600 text-white px-3 py-2 rounded-lg text-sm font-bold shadow-lg flex items-center gap-1.5 group">
+                                                <span>{seatId}</span>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); handleReleaseSeat(seatId); }}
+                                                    disabled={releasing === seatId}
+                                                    className="w-5 h-5 rounded-full bg-white/20 hover:bg-white/40 flex items-center justify-center transition-all opacity-70 group-hover:opacity-100"
+                                                    title={`Remove seat ${seatId}`}
+                                                >
+                                                    {releasing === seatId ? (
+                                                        <div className="w-3 h-3 border-2 border-white/60 border-t-transparent rounded-full animate-spin"></div>
+                                                    ) : (
+                                                        <X className="w-3 h-3" />
+                                                    )}
+                                                </button>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div className="text-sm text-gray-600">{selectedSeats.length} seat{selectedSeats.length > 1 ? 's' : ''} selected</div>
+                                    <div className="text-sm text-gray-600">{selectedSeats.length}/{maxSeats} seat{maxSeats > 1 ? 's' : ''} selected</div>
                                 </div>
                             )}
+
                             <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
                                 <div className="flex justify-between text-sm"><span className="text-gray-600">Flight Fare</span><span className="font-medium text-gray-900">₹{flight.price.toLocaleString()}</span></div>
                                 <div className="flex justify-between text-sm"><span className="text-gray-600">Seat Charges</span><span className="font-medium text-gray-900">₹{(selectedSeats.length * 200).toLocaleString()}</span></div>
                             </div>
+
                             <div className="mb-6">
                                 <div className="flex justify-between mb-2">
                                     <span className="font-semibold text-gray-900">Total Amount</span>
                                     <span className="text-2xl font-bold text-[#0033A0]">₹{(flight.price + selectedSeats.length * 200).toLocaleString()}</span>
                                 </div>
                             </div>
-                            <button onClick={handleConfirm} disabled={selectedSeats.length === 0} className="w-full bg-gradient-to-r from-[#0033A0] to-[#0052CC] text-white py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed">
-                                {selectedSeats.length > 0 ? 'Confirm Seats' : 'Select Seats to Continue'}
+
+                            {/* Confirm seats button */}
+                            <button
+                                onClick={handleConfirm}
+                                disabled={selectedSeats.length === 0}
+                                className="w-full bg-gradient-to-r from-[#0033A0] to-[#0052CC] text-white py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                                {selectedSeats.length > 0 ? (
+                                    <>Confirm {selectedSeats.length} Seat{selectedSeats.length > 1 ? 's' : ''} <ArrowRight className="w-5 h-5" /></>
+                                ) : 'Select Seats to Continue'}
                             </button>
+
+
                         </div>
                     </div>
                 </div>

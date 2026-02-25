@@ -6,7 +6,10 @@ import { createBooking } from '../utils/api.js';
 export function PaymentPage() {
     const navigate = useNavigate();
     const location = useLocation();
-    const { flight, searchData, passengerData: statePassengerData, selectedSeats } = location.state || {};
+    const {
+        flight, searchData, passengerData: statePassengerData,
+        selectedSeats = [],
+    } = location.state || {};
     const [paymentMethod, setPaymentMethod] = useState('card');
     const [isProcessing, setIsProcessing] = useState(false);
     const [bookingConfirmed, setBookingConfirmed] = useState(false);
@@ -28,7 +31,9 @@ export function PaymentPage() {
         }
     }, [bookingConfirmed, navigate]);
 
-    if (!flight || !selectedSeats || !flight.price) {
+
+
+    if (!flight || !flight.price) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <div className="text-center">
@@ -39,7 +44,8 @@ export function PaymentPage() {
         );
     }
 
-    const totalAmount = flight.price + selectedSeats.length * 200;
+    const seatCount = selectedSeats.length;
+    const totalAmount = flight.price + seatCount * 200;
 
     const handlePayment = async (e) => {
         e.preventDefault();
@@ -119,8 +125,11 @@ export function PaymentPage() {
                     <p className="text-xl text-white/90 mb-2" style={{ animation: 'fadeInUp 0.6s ease-out 0.6s both' }}>
                         Your PNR: <span className="font-bold text-[#FFD700]">{bookingPnr}</span>
                     </p>
-                    <p className="text-white/70 mb-6" style={{ animation: 'fadeInUp 0.6s ease-out 0.8s both' }}>
+                    <p className="text-white/70 mb-2" style={{ animation: 'fadeInUp 0.6s ease-out 0.8s both' }}>
                         {flight.departure} → {flight.arrival} • {selectedSeats.join(', ')}
+                    </p>
+                    <p className="text-white/60 text-sm mb-6" style={{ animation: 'fadeInUp 0.6s ease-out 0.9s both' }}>
+                        📧 Confirmation email sent to {passengerData.email}
                     </p>
                     <div className="text-white/60 text-sm" style={{ animation: 'fadeInUp 0.6s ease-out 1s both' }}>
                         <div className="w-6 h-6 border-2 border-white/40 border-t-white rounded-full animate-spin mx-auto mb-2"></div>
@@ -297,7 +306,7 @@ export function PaymentPage() {
                             <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
                                 <div className="flex justify-between text-sm"><span className="text-gray-600">Base Fare</span><span className="font-medium text-gray-900">₹{(flight.price * 0.75).toFixed(0)}</span></div>
                                 <div className="flex justify-between text-sm"><span className="text-gray-600">Taxes & Fees</span><span className="font-medium text-gray-900">₹{(flight.price * 0.25).toFixed(0)}</span></div>
-                                <div className="flex justify-between text-sm"><span className="text-gray-600">Seat Charges</span><span className="font-medium text-gray-900">₹{(selectedSeats.length * 200).toLocaleString()}</span></div>
+                                <div className="flex justify-between text-sm"><span className="text-gray-600">Seat Charges ({seatCount} seat{seatCount > 1 ? 's' : ''})</span><span className="font-medium text-gray-900">₹{(seatCount * 200).toLocaleString()}</span></div>
                             </div>
                             <div className="mb-4">
                                 <div className="flex justify-between mb-2">

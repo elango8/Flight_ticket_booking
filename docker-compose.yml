@@ -33,6 +33,44 @@ services:
       timeout: 3s
       retries: 10
 
+  celery-worker:
+    build: ./backend
+    container_name: flight_celery_worker
+    restart: unless-stopped
+    command: celery -A celery_app worker --loglevel=info --pool=solo
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql://elango08:elango08@postgres:5432/flight_booking_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=skybookofficial0@gmail.com
+      - SMTP_PASS=${SMTP_PASS:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  celery-beat:
+    build: ./backend
+    container_name: flight_celery_beat
+    restart: unless-stopped
+    command: celery -A celery_app beat --loglevel=info
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgresql://elango08:elango08@postgres:5432/flight_booking_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
 volumes:
   pgdata:
   redisdata:
