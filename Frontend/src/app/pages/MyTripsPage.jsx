@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Plane, Calendar, MapPin, X, CheckCircle, LogIn, AlertCircle, Loader2 } from 'lucide-react';
+import { Plane, Calendar, MapPin, X, CheckCircle, LogIn, AlertCircle, Loader2, ArrowLeft, Home } from 'lucide-react';
 import { getMyTrips, cancelBooking, getToken } from '../utils/api.js';
 
 export function MyTripsPage() {
@@ -93,6 +93,14 @@ export function MyTripsPage() {
         <div className="bg-gray-50 min-h-screen py-8">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="mb-8">
+                    <button
+                        onClick={() => navigate('/')}
+                        className="flex items-center gap-2 text-[#0033A0] hover:text-[#002d8f] mb-4 group transition-colors"
+                    >
+                        <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                        <Home className="w-4 h-4" />
+                        <span className="font-medium">Back to Home</span>
+                    </button>
                     <h1 className="text-3xl font-semibold text-gray-900 mb-2">My Trips</h1>
                     <p className="text-gray-600">View and manage all your flight bookings</p>
                 </div>
