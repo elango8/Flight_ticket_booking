@@ -9,8 +9,6 @@ export function Footer() {
                         <h3 className="font-semibold text-gray-900 mb-4">About SkyBook</h3>
                         <ul className="space-y-2">
                             <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">About Us</Link></li>
-                            <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">Careers</Link></li>
-                            <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">Press</Link></li>
                         </ul>
                     </div>
 
@@ -19,25 +17,6 @@ export function Footer() {
                         <ul className="space-y-2">
                             <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">Help Center</Link></li>
                             <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">Contact Us</Link></li>
-                            <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">FAQs</Link></li>
-                        </ul>
-                    </div>
-
-                    <div>
-                        <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
-                        <ul className="space-y-2">
-                            <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">Privacy Policy</Link></li>
-                            <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">Terms of Service</Link></li>
-                            <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">Cookie Policy</Link></li>
-                        </ul>
-                    </div>
-
-                    <div>
-                        <h3 className="font-semibold text-gray-900 mb-4">Connect</h3>
-                        <ul className="space-y-2">
-                            <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">Facebook</Link></li>
-                            <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">Twitter</Link></li>
-                            <li><Link to="/" className="text-gray-600 hover:text-[#0033A0] transition-colors">Instagram</Link></li>
                         </ul>
                     </div>
                 </div>

@@ -38,7 +38,22 @@ async def create_booking(
     user_id = str(current_user["id"])
     pnr = generate_pnr()
 
-    # 1. Create booking record
+    # 1. Validate — ensure none of the requested seats are already booked
+    already_booked = await db.execute(
+        text("""
+            SELECT seat_no FROM booking_seats
+            WHERE flight_instance_id = :fid AND seat_no = ANY(:seats)
+        """),
+        {"fid": data.flight_id, "seats": data.seat_nos},
+    )
+    taken = [row["seat_no"] for row in already_booked.mappings().all()]
+    if taken:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Seats already booked: {', '.join(taken)}",
+        )
+
+    # 2. Create booking record
     result = await db.execute(
         text("""
             INSERT INTO bookings (user_id, flight_instance_id, pnr, total_amount,
@@ -59,7 +74,7 @@ async def create_booking(
     booking_row = result.mappings().first()
     booking_id = booking_row["id"]
 
-    # 2. Insert booking_seats rows and mark seats as booked
+    # 3. Insert booking_seats rows — permanently marks seats as booked in DB
     for seat_no in data.seat_nos:
         await db.execute(
             text("""
@@ -69,7 +84,7 @@ async def create_booking(
             {"fid": data.flight_id, "seat": seat_no, "uid": user_id, "bid": booking_id},
         )
 
-        # 3. Clear seat holds in DB and Redis
+        # 4. Clear seat holds in DB and Redis (no longer needed — seat is now booked)
         await db.execute(
             text("""
                 DELETE FROM seat_holds

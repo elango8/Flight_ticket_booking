@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS booking_seats (
     id SERIAL PRIMARY KEY,
     flight_instance_id INTEGER REFERENCES flight_instances(id),
     seat_no VARCHAR(10) NOT NULL,
-    booked_at TIMESTAMP DEFAULT NOW()
+    booked_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE (flight_instance_id, seat_no)
 );
 
 -- ============================================
