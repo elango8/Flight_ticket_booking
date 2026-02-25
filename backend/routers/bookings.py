@@ -145,3 +145,45 @@ async def get_my_trips(
         })
 
     return {"trips": trips}
+
+
+@router.post("/bookings/{booking_id}/cancel")
+async def cancel_booking(
+    booking_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    user_id = str(current_user["id"])
+
+    # 1. Verify booking exists and belongs to current user
+    result = await db.execute(
+        text("SELECT id, status, flight_instance_id FROM bookings WHERE id = :bid AND user_id = :uid"),
+        {"bid": booking_id, "uid": user_id},
+    )
+    booking = result.mappings().first()
+
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    if booking["status"] == "cancelled":
+        raise HTTPException(status_code=400, detail="Booking is already cancelled")
+
+    # 2. Update booking status
+    await db.execute(
+        text("UPDATE bookings SET status = 'cancelled' WHERE id = :bid"),
+        {"bid": booking_id},
+    )
+
+    # 3. Release seats — delete booking_seats rows so they become available
+    await db.execute(
+        text("DELETE FROM booking_seats WHERE booking_id = :bid"),
+        {"bid": booking_id},
+    )
+
+    await db.commit()
+
+    return {
+        "booking_id": booking_id,
+        "status": "cancelled",
+        "message": "Booking cancelled successfully",
+    }

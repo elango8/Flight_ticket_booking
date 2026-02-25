@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Plane, Calendar, MapPin, Download, X, CheckCircle, LogIn } from 'lucide-react';
-import { getMyTrips, getToken } from '../utils/api.js';
+import { Plane, Calendar, MapPin, X, CheckCircle, LogIn, AlertCircle, Loader2 } from 'lucide-react';
+import { getMyTrips, cancelBooking, getToken } from '../utils/api.js';
 
 export function MyTripsPage() {
     const navigate = useNavigate();
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [cancellingId, setCancellingId] = useState(null);
 
     const isLoggedIn = !!getToken();
 
@@ -25,6 +26,23 @@ export function MyTripsPage() {
         }
         fetchTrips();
     }, [isLoggedIn]);
+
+    const handleCancel = async (bookingId) => {
+        if (!confirm('Are you sure you want to cancel this booking? This action cannot be undone.')) return;
+
+        setCancellingId(bookingId);
+        try {
+            await cancelBooking(bookingId);
+            // Instant UI update — set status to cancelled
+            setBookings(prev =>
+                prev.map(b => b.id === bookingId ? { ...b, status: 'cancelled' } : b)
+            );
+        } catch (err) {
+            alert(err.message || 'Failed to cancel booking');
+        } finally {
+            setCancellingId(null);
+        }
+    };
 
     const getStatusBadge = (status) => {
         switch (status) {
@@ -44,6 +62,12 @@ export function MyTripsPage() {
                 return (
                     <div className="flex items-center gap-1.5 bg-red-100 text-red-700 px-3 py-1.5 rounded-full text-sm font-medium">
                         <X className="w-4 h-4" /><span>Cancelled</span>
+                    </div>
+                );
+            default:
+                return (
+                    <div className="flex items-center gap-1.5 bg-gray-100 text-gray-700 px-3 py-1.5 rounded-full text-sm font-medium">
+                        <span>{status}</span>
                     </div>
                 );
         }
@@ -94,7 +118,7 @@ export function MyTripsPage() {
                             </div>
                         ) : (
                             bookings.map((booking) => (
-                                <div key={booking.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                                <div key={booking.id} className={`bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow ${booking.status === 'cancelled' ? 'opacity-75' : ''}`}>
                                     <div className="p-6">
                                         <div className="flex items-center justify-between mb-6">
                                             <div className="flex items-center gap-4">
@@ -142,15 +166,20 @@ export function MyTripsPage() {
                                                 <span className="text-xl font-bold text-[#0033A0]">₹{booking.price.toLocaleString()}</span>
                                             </div>
                                             <div className="flex gap-3">
-                                                <button className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
-                                                    <Download className="w-4 h-4" /><span className="text-sm font-medium">Download</span>
-                                                </button>
                                                 {booking.status === 'confirmed' && (
-                                                    <button className="flex items-center gap-2 px-4 py-2 border border-red-300 rounded-lg text-red-600 hover:bg-red-50 transition-colors">
-                                                        <X className="w-4 h-4" /><span className="text-sm font-medium">Cancel</span>
+                                                    <button
+                                                        onClick={() => handleCancel(booking.id)}
+                                                        disabled={cancellingId === booking.id}
+                                                        className="flex items-center gap-2 px-4 py-2 border border-red-300 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    >
+                                                        {cancellingId === booking.id ? (
+                                                            <><Loader2 className="w-4 h-4 animate-spin" /><span className="text-sm font-medium">Cancelling...</span></>
+                                                        ) : (
+                                                            <><X className="w-4 h-4" /><span className="text-sm font-medium">Cancel Booking</span></>
+                                                        )}
                                                     </button>
                                                 )}
-                                                {booking.status === 'completed' && (
+                                                {(booking.status === 'completed' || booking.status === 'cancelled') && (
                                                     <button onClick={() => navigate('/')} className="px-4 py-2 bg-gradient-to-r from-[#0033A0] to-[#0052CC] text-white rounded-lg hover:shadow-lg transition-all text-sm font-medium">Book Again</button>
                                                 )}
                                             </div>

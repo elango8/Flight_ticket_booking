@@ -158,6 +158,14 @@ export async function getMyTrips() {
     return handleResponse(response);
 }
 
+export async function cancelBooking(bookingId) {
+    const response = await fetch(`${API_BASE}/bookings/${bookingId}/cancel`, {
+        method: 'POST',
+        headers: { ...authHeaders() },
+    });
+    return handleResponse(response);
+}
+
 // ─── Airport API ─────────────────────────────────────────────────────
 
 export async function getAirports() {
