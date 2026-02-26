@@ -192,12 +192,12 @@ Have a great flight ✈️
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(SMTP_USER, to_email, msg.as_string())
 
-        print(f"[EMAIL] ✅ Confirmation sent to {to_email} (PNR: {pnr})")
+        print(f"[EMAIL] Confirmation sent to {to_email} (PNR: {pnr})")
         return True
 
     except smtplib.SMTPAuthenticationError as e:
-        print(f"[EMAIL] ❌ SMTP Auth failed — check SMTP_PASS (App Password required): {e}")
+        print(f"[EMAIL] SMTP Auth failed - check SMTP_PASS (App Password required): {e}")
         return False
     except Exception as e:
-        print(f"[EMAIL] ❌ Failed to send email: {e}")
+        print(f"[EMAIL] Failed to send email: {e}")
         return False

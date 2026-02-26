@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Users, Minus, Plus } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover.tsx';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover.jsx';
 
 export function PassengerSelector({
     value = 1,
@@ -34,15 +34,15 @@ export function PassengerSelector({
                     <button
                         type="button"
                         className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer group ${isGlass
-                                ? `bg-white/[0.08] border-white/[0.12] hover:bg-white/[0.14] ${open ? 'ring-2 ring-cyan-400/40 border-cyan-400/30' : ''
-                                }`
-                                : `bg-white border-gray-200 hover:border-indigo-400 shadow-sm ${open ? 'ring-2 ring-indigo-500/20 border-indigo-500' : ''
-                                }`
+                            ? `bg-white/[0.08] border-white/[0.12] hover:bg-white/[0.14] ${open ? 'ring-2 ring-cyan-400/40 border-cyan-400/30' : ''
+                            }`
+                            : `bg-white border-gray-200 hover:border-indigo-400 shadow-sm ${open ? 'ring-2 ring-indigo-500/20 border-indigo-500' : ''
+                            }`
                             }`}
                     >
                         <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all ${isGlass
-                                ? 'bg-cyan-500/20 text-cyan-300'
-                                : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100'
+                            ? 'bg-cyan-500/20 text-cyan-300'
+                            : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100'
                             }`}>
                             <Users className="w-4 h-4" />
                         </div>

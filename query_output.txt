@@ -1,0 +1,175 @@
+================================================================================
+AIRCRAFT TYPES (seat_maps)
+================================================================================
+  ID 1: Airbus A320 Standard            (180 seats)
+  ID 2: Boeing 737-800                  (180 seats)
+  ID 3: Airbus A321neo                  (216 seats)
+  ID 4: ATR 72-600                      (72 seats)
+  ID 5: Boeing 777-300ER                (360 seats)
+
+================================================================================
+AIRLINES
+================================================================================
+  ID 1: [6E] IndiGo
+  ID 2: [AI] Air India
+  ID 3: [UK] Vistara
+  ID 4: [SG] SpiceJet
+  ID 5: [I5] AirAsia India
+  ID 6: [G8] Go First
+
+================================================================================
+AIRPORTS
+================================================================================
+  ID  1: [MAA] Chennai      - Chennai International Airport
+  ID  2: [DEL] Delhi        - Indira Gandhi International Airport
+  ID  3: [BOM] Mumbai       - Chhatrapati Shivaji International Airport
+  ID  4: [BLR] Bangalore    - Kempegowda International Airport
+  ID  5: [HYD] Hyderabad    - Rajiv Gandhi International Airport
+  ID  6: [CCU] Kolkata      - Netaji Subhas Chandra Bose Airport
+  ID  7: [GOI] Goa          - Goa International Airport
+  ID  8: [COK] Kochi        - Cochin International Airport
+  ID  9: [PNQ] Pune         - Pune Airport
+  ID 10: [AMD] Ahmedabad    - Sardar Vallabhbhai Patel Airport
+  ID 11: [JAI] Jaipur       - Jaipur International Airport
+  ID 12: [GAU] Guwahati     - Lokpriya Gopinath Bordoloi Airport
+
+================================================================================
+ALL FLIGHT INSTANCES (sorted by route & time)
+================================================================================
+
+  Total flights: 47
+
+  -- BLR -> BOM --
+    #23  SG-202      08:00-09:30  Rs.2,999  [Boeing 737-800]
+    #24  6E-302      17:00-18:30  Rs.3,399  [Airbus A320 Standard]
+
+  -- BLR -> GOI --
+    #18  I5-901      10:00-11:15  Rs.2,499  [Airbus A320 Standard]
+    #17  SG-8156     16:30-17:45  Rs.2,999  [Airbus A320 Standard]
+
+  -- BLR -> HYD --
+    #13  6E-401      07:30-08:45  Rs.2,499  [Airbus A320 Standard]
+    #14  UK-701      16:00-17:15  Rs.3,999  [Airbus A320 Standard]
+
+  -- BLR -> PNQ --
+    #46  6E-6115     12:00-13:30  Rs.2,599  [ATR 72-600]
+
+  -- BOM -> BLR --
+    #10  6E-301      09:00-10:30  Rs.3,299  [Airbus A320 Standard]
+    #11  SG-201      13:00-14:30  Rs.2,899  [Airbus A320 Standard]
+    #12  AI-501      18:00-19:30  Rs.4,599  [Airbus A320 Standard]
+
+  -- BOM -> COK --
+    #43  AI-680      11:00-12:45  Rs.4,299  [Airbus A321neo]
+
+  -- BOM -> DEL --
+    #21  UK-956      06:30-08:40  Rs.6,799  [Airbus A321neo]
+    #22  6E-5013     14:00-16:10  Rs.3,899  [Boeing 737-800]
+
+  -- BOM -> GOI --
+    #38  6E-5530     10:00-11:05  Rs.2,399  [ATR 72-600]
+    #39  SG-9020     16:00-17:05  Rs.2,099  [Boeing 737-800]
+
+  -- CCU -> DEL --
+    #26  AI-402      11:00-13:15  Rs.4,999  [Boeing 777-300ER]
+
+  -- CCU -> GAU --
+    #47  I5-350      14:00-15:10  Rs.1,899  [ATR 72-600]
+
+  -- DEL -> AMD --
+    #45  SG-3030     08:00-09:30  Rs.2,899  [Boeing 737-800]
+
+  -- DEL -> BLR --
+    #28  AI-803      05:30-08:15  Rs.5,499  [Boeing 777-300ER]
+    #29  UK-835      16:00-18:45  Rs.7,199  [Airbus A321neo]
+
+  -- DEL -> BOM --
+    # 7  6E-5012     08:00-10:10  Rs.3,799  [Airbus A320 Standard]
+    # 8  AI-680      12:30-14:40  Rs.5,199  [Airbus A320 Standard]
+    # 9  UK-955      17:00-19:10  Rs.6,899  [Airbus A320 Standard]
+
+  -- DEL -> CCU --
+    #15  AI-401      06:00-08:15  Rs.4,899  [Airbus A320 Standard]
+    #16  G8-301      15:00-17:15  Rs.3,199  [Airbus A320 Standard]
+
+  -- DEL -> GOI --
+    #32  6E-7210     09:00-11:30  Rs.4,999  [Airbus A321neo]
+    #33  I5-2100     14:30-17:00  Rs.3,799  [Boeing 737-800]
+
+  -- DEL -> JAI --
+    #40  6E-2301     07:30-08:20  Rs.1,999  [ATR 72-600]
+    #41  G8-115      17:00-17:50  Rs.1,799  [ATR 72-600]
+
+  -- DEL -> MAA --
+    #19  6E-2050     07:00-09:45  Rs.4,399  [Boeing 737-800]
+    #20  AI-544      13:30-16:15  Rs.5,799  [Airbus A320 Standard]
+
+  -- GOI -> BLR --
+    #27  SG-8157     12:00-13:15  Rs.3,099  [Boeing 737-800]
+
+  -- HYD -> BLR --
+    #25  I5-502      09:30-10:45  Rs.2,599  [Boeing 737-800]
+
+  -- HYD -> DEL --
+    #36  G8-510      07:00-09:15  Rs.3,899  [Boeing 737-800]
+    #37  AI-652      19:00-21:15  Rs.5,299  [Boeing 777-300ER]
+
+  -- JAI -> DEL --
+    #42  6E-2302     09:00-09:50  Rs.2,099  [ATR 72-600]
+
+  -- MAA -> BLR --
+    #34  6E-2071     06:30-07:30  Rs.2,199  [ATR 72-600]
+    #35  UK-845      18:00-19:00  Rs.3,499  [Airbus A320 Standard]
+
+  -- MAA -> BOM --
+    #30  6E-6001     08:00-10:00  Rs.3,799  [Boeing 737-800]
+    #31  AI-617      15:30-17:30  Rs.5,399  [Boeing 777-300ER]
+
+  -- MAA -> COK --
+    #44  I5-771      06:00-07:15  Rs.2,299  [ATR 72-600]
+
+  -- MAA -> DEL --
+    # 1  6E-2043     06:30-09:15  Rs.4,299  [Airbus A320 Standard]
+    # 5  6E-2044     07:00-09:45  Rs.4,599  [Airbus A320 Standard]
+    # 2  AI-543      10:00-12:45  Rs.5,899  [Airbus A320 Standard]
+    # 6  I5-1723     11:30-14:15  Rs.3,599  [Airbus A320 Standard]
+    # 3  UK-821      14:30-17:15  Rs.6,499  [Airbus A320 Standard]
+    # 4  SG-8156     19:00-21:45  Rs.3,899  [Airbus A320 Standard]
+
+================================================================================
+ROUTES SUMMARY
+================================================================================
+  BLR -> BOM: 2 flight(s)
+  BLR -> GOI: 2 flight(s)
+  BLR -> HYD: 2 flight(s)
+  BLR -> PNQ: 1 flight(s)
+  BOM -> BLR: 3 flight(s)
+  BOM -> COK: 1 flight(s)
+  BOM -> DEL: 2 flight(s)
+  BOM -> GOI: 2 flight(s)
+  CCU -> DEL: 1 flight(s)
+  CCU -> GAU: 1 flight(s)
+  DEL -> AMD: 1 flight(s)
+  DEL -> BLR: 2 flight(s)
+  DEL -> BOM: 3 flight(s)
+  DEL -> CCU: 2 flight(s)
+  DEL -> GOI: 2 flight(s)
+  DEL -> JAI: 2 flight(s)
+  DEL -> MAA: 2 flight(s)
+  GOI -> BLR: 1 flight(s)
+  HYD -> BLR: 1 flight(s)
+  HYD -> DEL: 2 flight(s)
+  JAI -> DEL: 1 flight(s)
+  MAA -> BLR: 2 flight(s)
+  MAA -> BOM: 2 flight(s)
+  MAA -> COK: 1 flight(s)
+  MAA -> DEL: 6 flight(s)
+
+================================================================================
+AIRCRAFT USAGE
+================================================================================
+  Airbus A320 Standard          : 21 flights
+  Boeing 737-800                : 10 flights
+  ATR 72-600                    : 8 flights
+  Boeing 777-300ER              : 4 flights
+  Airbus A321neo                : 4 flights

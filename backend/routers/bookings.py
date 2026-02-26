@@ -10,7 +10,7 @@ from typing import List, Optional
 from core.security import get_current_user
 from core.redis_client import redis_client
 from db.session import get_db
-from tasks import send_ticket_confirmation_email
+from email_service import send_booking_email
 
 router = APIRouter(tags=["Bookings"])
 
@@ -102,12 +102,53 @@ async def create_booking(
 
     await db.commit()
 
-    # ── Dispatch confirmation email via Celery (non-blocking) ──
+    # ── Send confirmation email directly (no Celery dependency) ──
     try:
-        send_ticket_confirmation_email.delay(booking_id)
+        # Fetch full booking details for the email
+        email_result = await db.execute(
+            text("""
+                SELECT
+                    b.pnr, b.total_amount, b.status,
+                    b.passenger_name, b.passenger_email,
+                    fi.flight_number, fi.travel_date,
+                    fi.departure_time, fi.arrival_time,
+                    al.name AS airline,
+                    ap_from.city AS from_city, ap_from.code AS from_code,
+                    ap_to.city AS to_city, ap_to.code AS to_code
+                FROM bookings b
+                JOIN flight_instances fi ON b.flight_instance_id = fi.id
+                JOIN airlines al ON fi.airline_id = al.id
+                JOIN airports ap_from ON fi.from_airport_id = ap_from.id
+                JOIN airports ap_to ON fi.to_airport_id = ap_to.id
+                WHERE b.id = :bid
+            """),
+            {"bid": booking_id},
+        )
+        booking_info = email_result.mappings().first()
+
+        if booking_info and booking_info["passenger_email"]:
+            booking_data = {
+                "pnr": booking_info["pnr"],
+                "passenger_name": booking_info["passenger_name"] or "Traveller",
+                "flight_number": booking_info["flight_number"],
+                "airline": booking_info["airline"],
+                "from_city": booking_info["from_city"],
+                "from_code": booking_info["from_code"],
+                "to_city": booking_info["to_city"],
+                "to_code": booking_info["to_code"],
+                "travel_date": str(booking_info["travel_date"]),
+                "departure_time": str(booking_info["departure_time"])[:5],
+                "arrival_time": str(booking_info["arrival_time"])[:5],
+                "seats": seat_nos if seat_nos else ["Auto-assigned at check-in"],
+                "total_amount": float(booking_info["total_amount"]),
+                "status": booking_info["status"],
+            }
+            send_booking_email(booking_info["passenger_email"], booking_data)
+        else:
+            print("[EMAIL] No passenger email provided — skipping confirmation.")
     except Exception as e:
-        # Don't fail the booking if Celery/Redis is down
-        print(f"[WARN] Could not dispatch email task: {e}")
+        # Don't fail the booking if email sending fails
+        print(f"[EMAIL] Could not send confirmation email: {e}")
 
     return {
         "booking_id": booking_id,
