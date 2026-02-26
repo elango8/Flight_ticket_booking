@@ -21,10 +21,6 @@ import { PassengerSelector } from "../components/PassengerSelector.jsx";
 // ── Hero carousel images (Unsplash – royalty-free) ──
 const HERO_IMAGES = [
     {
-        url: "https://images.unsplash.com/photo-1436491865332-7a61a109db05?auto=format&fit=crop&w=1920&q=80",
-        alt: "Airplane wing above clouds at sunset",
-    },
-    {
         url: "https://images.unsplash.com/photo-1464037866556-6812c9d1c72e?auto=format&fit=crop&w=1920&q=80",
         alt: "Commercial airplane flying through golden clouds",
     },

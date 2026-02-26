@@ -12,6 +12,11 @@ export default defineConfig({
         tailwindcss(),
     ],
     server: {
+        host: '0.0.0.0',     // required for Docker — listen on all interfaces
+        port: 5173,
+        watch: {
+            usePolling: true, // required for hot-reload inside Docker on Windows
+        },
         proxy: {
             '/api': {
                 target: 'http://localhost:8000',

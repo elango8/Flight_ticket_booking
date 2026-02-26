@@ -1,25 +1,36 @@
+# =============================================================================
+#  Flight Ticket Booking – Docker Compose (Dev Mode)
+# =============================================================================
+#  Start everything:   docker compose up --build
+#  Stop everything:    docker compose down
+#  Reset DB:           docker compose down -v
+# =============================================================================
+
 services:
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16
     container_name: flight_postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: elango08
-      POSTGRES_PASSWORD: elango08
-      POSTGRES_DB: flight_booking_db
+    env_file: .env.docker
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./add_airplanes.sql:/docker-entrypoint-initdb.d/02-airplanes.sql:ro
+      - ./migrate_bookings.sql:/docker-entrypoint-initdb.d/03-migrate-bookings.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U flight_user -d flight_booking_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-elango08} -d ${POSTGRES_DB:-flight_booking_db}"]
       interval: 5s
       timeout: 5s
       retries: 10
+    networks:
+      - flight-net
 
+  # ── Redis ──────────────────────────────────────────────────────────────────
   redis:
-    image: redis:7
+    image: redis:7-alpine
     container_name: flight_redis
     restart: unless-stopped
     ports:
@@ -32,45 +43,86 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - flight-net
 
+  # ── FastAPI Backend ────────────────────────────────────────────────────────
+  backend:
+    build: ./backend
+    container_name: flight_backend
+    restart: unless-stopped
+    env_file: .env.docker
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app        # live code editing (hot-reload)
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - flight-net
+
+  # ── React + Vite Frontend ─────────────────────────────────────────────────
+  frontend:
+    build: ./Frontend
+    container_name: flight_frontend
+    restart: unless-stopped
+    env_file: .env.docker
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./Frontend:/app       # live code editing (hot-reload)
+      - /app/node_modules     # preserve container node_modules
+    depends_on:
+      - backend
+    networks:
+      - flight-net
+
+  # ── Celery Worker ──────────────────────────────────────────────────────────
   celery-worker:
     build: ./backend
     container_name: flight_celery_worker
     restart: unless-stopped
     command: celery -A celery_app worker --loglevel=info --pool=solo
     working_dir: /app
+    env_file: .env.docker
     volumes:
       - ./backend:/app
-    environment:
-      - DATABASE_URL=postgresql://elango08:elango08@postgres:5432/flight_booking_db
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - SMTP_HOST=smtp.gmail.com
-      - SMTP_PORT=587
-      - SMTP_USER=skybookofficial0@gmail.com
-      - SMTP_PASS=${SMTP_PASS:-}
     depends_on:
       redis:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    networks:
+      - flight-net
 
+  # ── Celery Beat (scheduler) ───────────────────────────────────────────────
   celery-beat:
     build: ./backend
     container_name: flight_celery_beat
     restart: unless-stopped
     command: celery -A celery_app beat --loglevel=info
     working_dir: /app
+    env_file: .env.docker
     volumes:
       - ./backend:/app
-    environment:
-      - DATABASE_URL=postgresql://elango08:elango08@postgres:5432/flight_booking_db
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
     depends_on:
       redis:
         condition: service_healthy
+    networks:
+      - flight-net
 
+# ── Named Volumes ────────────────────────────────────────────────────────────
 volumes:
   pgdata:
+    name: flight_pgdata
   redisdata:
+    name: flight_redisdata
+
+# ── Custom Network ───────────────────────────────────────────────────────────
+networks:
+  flight-net:
+    name: flight-network
+    driver: bridge
