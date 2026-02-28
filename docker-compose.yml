@@ -1,51 +1,17 @@
 # =============================================================================
-#  Flight Ticket Booking – Docker Compose (Dev Mode)
+#  Flight Ticket Booking – Docker Compose (Production)
 # =============================================================================
+#  Prerequisites:
+#    1. Existing containers: ticket_postgres, redis-server
+#    2. External network:    docker network create ticket-net
+#    3. Connect containers:  docker network connect ticket-net ticket_postgres
+#                            docker network connect ticket-net redis-server
+#
 #  Start everything:   docker compose up --build
 #  Stop everything:    docker compose down
-#  Reset DB:           docker compose down -v
 # =============================================================================
 
 services:
-  # ── PostgreSQL ─────────────────────────────────────────────────────────────
-  postgres:
-    image: postgres:16
-    container_name: flight_postgres
-    restart: unless-stopped
-    env_file: .env.docker
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
-      - ./add_airplanes.sql:/docker-entrypoint-initdb.d/02-airplanes.sql:ro
-      - ./migrate_bookings.sql:/docker-entrypoint-initdb.d/03-migrate-bookings.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-elango08} -d ${POSTGRES_DB:-flight_booking_db}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - flight-net
-
-  # ── Redis ──────────────────────────────────────────────────────────────────
-  redis:
-    image: redis:7-alpine
-    container_name: flight_redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
-    volumes:
-      - redisdata:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-    networks:
-      - flight-net
-
   # ── FastAPI Backend ────────────────────────────────────────────────────────
   backend:
     build: ./backend
@@ -54,51 +20,43 @@ services:
     env_file: .env.docker
     ports:
       - "8000:8000"
-    volumes:
-      - ./backend:/app        # live code editing (hot-reload)
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/')\"" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
     networks:
-      - flight-net
+      - ticket-net
 
-  # ── React + Vite Frontend ─────────────────────────────────────────────────
+  # ── React + Vite Frontend (Nginx) ──────────────────────────────────────────
   frontend:
     build: ./Frontend
     container_name: flight_frontend
     restart: unless-stopped
-    env_file: .env.docker
     ports:
       - "5173:5173"
-    volumes:
-      - ./Frontend:/app       # live code editing (hot-reload)
-      - /app/node_modules     # preserve container node_modules
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
-      - flight-net
+      - ticket-net
 
   # ── Celery Worker ──────────────────────────────────────────────────────────
   celery-worker:
     build: ./backend
     container_name: flight_celery_worker
     restart: unless-stopped
-    command: celery -A celery_app worker --loglevel=info --pool=solo
+    command: celery -A celery_app worker --loglevel=info --pool=solo --concurrency=1
     working_dir: /app
     env_file: .env.docker
-    volumes:
-      - ./backend:/app
     depends_on:
-      redis:
-        condition: service_healthy
-      postgres:
+      backend:
         condition: service_healthy
     networks:
-      - flight-net
+      - ticket-net
 
-  # ── Celery Beat (scheduler) ───────────────────────────────────────────────
+  # ── Celery Beat (scheduler) ────────────────────────────────────────────────
   celery-beat:
     build: ./backend
     container_name: flight_celery_beat
@@ -106,23 +64,17 @@ services:
     command: celery -A celery_app beat --loglevel=info
     working_dir: /app
     env_file: .env.docker
-    volumes:
-      - ./backend:/app
     depends_on:
-      redis:
+      backend:
         condition: service_healthy
     networks:
-      - flight-net
+      - ticket-net
 
-# ── Named Volumes ────────────────────────────────────────────────────────────
-volumes:
-  pgdata:
-    name: flight_pgdata
-  redisdata:
-    name: flight_redisdata
-
-# ── Custom Network ───────────────────────────────────────────────────────────
+# ── External Network ──────────────────────────────────────────────────────────
+# ticket-net must be created BEFORE running docker compose up:
+#   docker network create ticket-net
+#   docker network connect ticket-net ticket_postgres
+#   docker network connect ticket-net redis-server
 networks:
-  flight-net:
-    name: flight-network
-    driver: bridge
+  ticket-net:
+    external: true

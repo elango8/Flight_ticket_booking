@@ -1,21 +1,15 @@
-node_modules
+node_modules/
+dist/
+__pycache__/
+.venv/
+
+# Environment files
 .env
-__pycache__
-.venv
+.env.production
 .env.local
-.env.example
-.env.prod
 .env.dev
-.env.test
-.env.prod.local
-.env.dev.local
-.env.test.local 
-.env.prod.example
-.env.dev.example
-.env.test.example           
-.env.prod.example
-.env.dev.example
-.env.test.example           
-.env.prod.example
-.env.dev.example
-.env.test.example               
+.env.demo
+
+# Allow example template
+!.env.example
+!.env.production.example

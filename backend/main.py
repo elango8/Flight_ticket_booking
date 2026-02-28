@@ -32,6 +32,10 @@ app.include_router(bookings_router)
 def root():
     return {"message": "Flight Booking API is running"}
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
 @app.get("/health/db")
 async def health_db(db: AsyncSession = Depends(get_db)):
     result = await db.execute(text("SELECT 1 AS ok"))
