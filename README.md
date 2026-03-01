@@ -179,6 +179,13 @@ All services should show **Up** and **Healthy**.
 http://localhost/
 
 
+# Seed scripts run only on first DB creation.
+# If you ran the project before and want to reload demo data, reset the database volume using:
+
+docker compose -f docker-compose.prod.yml down -v
+docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+
+
 # 🧪 How to Test the System
 
 1. Register a new user  
