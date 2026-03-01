@@ -163,27 +163,6 @@ export function LandingPage() {
                             <p className="text-lg md:text-xl text-white/70 max-w-lg leading-relaxed mb-10 drop-shadow-md">
                                 Compare <span className="text-white font-semibold">50+ airlines</span>, find the best deals, and book your perfect flight — all in seconds.
                             </p>
-
-                            {/* Stats row */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                {[
-                                    { value: "10M+", label: "Travelers", icon: Users },
-                                    { value: "500+", label: "Routes", icon: Globe },
-                                    { value: "50+", label: "Airlines", icon: Plane },
-                                    { value: "4.8★", label: "Rating", icon: Star },
-                                ].map((stat, i) => {
-                                    const Icon = stat.icon;
-                                    return (
-                                        <div key={i} className="flex items-center gap-2.5 bg-white/[0.08] backdrop-blur-md rounded-xl px-4 py-3 border border-white/[0.1]">
-                                            <Icon className="w-4 h-4 text-cyan-300/80 flex-shrink-0" />
-                                            <div>
-                                                <div className="text-white font-bold text-sm leading-none">{stat.value}</div>
-                                                <div className="text-white/40 text-[10px] mt-0.5">{stat.label}</div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
                         </div>
 
                         {/* Right — Search Card (Glassmorphism) */}
